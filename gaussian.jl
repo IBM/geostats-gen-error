@@ -50,28 +50,28 @@ function problem(; δ=0.0, τ=1.0, r=10.0, size=(100,100))
 end
 
 # estimators of generalization error
-error_cv(m, p, k) = error(PointwiseLearn(m), p, CrossValidation(k))
-error_bv(m, p, r) = error(PointwiseLearn(m), p, BlockCrossValidation(r))
-error_dr(m, p, k) = error(PointwiseLearn(m), p, DensityRatioValidation(k,estimator=LSIF(σ=2.0,b=10)))
+error_cv( m, p, k, ℒ) = error(PointwiseLearn(m), p, CrossValidation(k, loss=ℒ))
+error_bcv(m, p, r, ℒ) = error(PointwiseLearn(m), p, BlockCrossValidation(r, loss=ℒ))
+error_drv(m, p, k, ℒ) = error(PointwiseLearn(m), p, DensityRatioValidation(k, loss=ℒ, estimator=LSIF(σ=2.0,b=10)))
 
 # true error (empirical approximation)
-function error_empirical(m, p, Ωts)
+function error_empirical(m, p, Ωts, ℒ)
   # train on source data
-  l = GeoStats.learn(task(p), sourcedata(p), m)
+  lm = learn(task(p), sourcedata(p), m)
 
   # test on various samples of target data
-  es = map(Ωts) do Ωt
-    y = vec(Ωt[:LABEL])
-    ŷ = vec(perform(task(p), Ωt, l)[:LABEL])
-    𝔏 = MisclassLoss()
-    LossFunctions.value(𝔏, y, ŷ, AggMode.Mean())
+  ϵs = map(Ωts) do Ωt
+    Ω̂t = perform(task(p), Ωt, lm)
+    y  = vec(Ωt[:LABEL])
+    ŷ  = vec(Ω̂t[:LABEL])
+    LossFunctions.value(ℒ[:LABEL], y, ŷ, AggMode.Mean())
   end
 
-  # averate misclassification rate
-  mean(es)
+  # return mean loss
+  mean(ϵs)
 end
 
-function error_comparison(m, δ, τ, r)
+function error_comparison(m, δ, τ, r, ℒ)
   # sample a problem
   p, Ωts = problem(δ=δ, τ=τ, r=r)
 
@@ -81,14 +81,14 @@ function error_comparison(m, δ, τ, r)
   k  = round(Int, prod(s ./ rᵦ))
 
   # try different error estimates
-  cv = error_cv(m, p, k)[:LABEL]
-  bv = error_bv(m, p, rᵦ)[:LABEL]
-  dr = error_dr(m, p, k)[:LABEL]
+  cv  = error_cv( m, p, k,  ℒ)[:LABEL]
+  bcv = error_bcv(m, p, rᵦ, ℒ)[:LABEL]
+  drv = error_drv(m, p, k,  ℒ)[:LABEL]
 
   # actual error (empirical estimate)
-  actual = error_empirical(m, p, Ωts)
+  actual = error_empirical(m, p, Ωts, ℒ)
 
-  (δ=δ, τ=τ, r=r, CV=cv, BV=bv, DR=dr, ACTUAL=actual, MODEL=info(m).name)
+  (δ=δ, τ=τ, r=r, CV=cv, BCV=bcv, DRV=drv, ACTUAL=actual, MODEL=info(m).name)
 end
 
 # -------------
@@ -99,19 +99,31 @@ end
 @load KNNClassifier
 @load DecisionTreeClassifier
 
+# misclassification loss
+ℒ = Dict(:LABEL => MisclassLoss())
+
 # parameter ranges
+mrange = [DecisionTreeClassifier(),KNNClassifier()]
 δrange = 0.0:0.1:0.7
 τrange = 0.5:0.1:1.0
 rrange = [1e-4,1e+1,2e+1]
-mrange = [DecisionTreeClassifier(),KNNClassifier()]
 
+# experiment iterator and progress
+iterator = Iterators.product(mrange, δrange, τrange, rrange)
+progress = Progress(length(iterator), "Gaussian experiment:")
+
+# perform experiment
 results = DataFrame()
-@showprogress for m in mrange, δ in δrange, τ in τrange, r in rrange
+for iter in iterator
+  m, δ, τ, r = iter
   try
-    push!(results, error_comparison(m, δ, τ, r))
+    push!(results, error_comparison(m, δ, τ, r, ℒ))
   catch e
+    e isa InterruptException && break
     println("Skipped m=$m δ=$δ τ=$τ r=$r")
   end
+  next!(progress, showvalues = [(:model,info(m).name), (:δ,δ), (:τ,τ), (:r,r)])
 end
 
+# save results
 CSV.write("results/gaussian.csv", results)
