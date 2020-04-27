@@ -13,8 +13,9 @@ or plot the results that were saved in the repository by the authors.
 To reproduce the environment, please go to the root folder and run the following commands:
 
 ```julia
+using Pkg
 push!(empty!(LOAD_PATH), @__DIR__)
-using Pkg; Pkg.instantiate()
+Pkg.instantiate()
 ```
 
 After the environment is instantiated, you can run the experiments by including them in the session:
