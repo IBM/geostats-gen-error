@@ -248,7 +248,9 @@ version = "0.11.3"
 
 [[GeoStatsBase]]
 deps = ["AverageShiftedHistograms", "CSV", "CategoricalArrays", "DataFrames", "DensityRatioEstimation", "Distances", "Distributed", "Distributions", "LinearAlgebra", "LossFunctions", "MLJModelInterface", "NearestNeighbors", "Optim", "OrderedCollections", "Parameters", "Random", "RecipesBase", "ScientificTypes", "SpecialFunctions", "StaticArrays", "Statistics", "StatsBase", "Tables"]
-git-tree-sha1 = "f54a06cd1e5daa99fa337e3fe87b5378ef42aa5e"
+git-tree-sha1 = "f7a9515ccce6b26d932f34e59f9318e0ccdc293c"
+repo-rev = "master"
+repo-url = "https://github.com/JuliaEarth/GeoStatsBase.jl.git"
 uuid = "323cb8eb-fbf6-51c0-afd0-f8fba70507b2"
 version = "0.8.5"
 
@@ -354,11 +356,9 @@ uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 
 [[LossFunctions]]
 deps = ["LearnBase", "Markdown", "RecipesBase", "SparseArrays", "StatsBase"]
-git-tree-sha1 = "c3807d220e95d736b71901c663ab6c29c60838ed"
-repo-rev = "master"
-repo-url = "https://github.com/JuliaML/LossFunctions.jl.git"
+git-tree-sha1 = "ff82b4b2c598c0df835cdeb31cc6307b3bc30a21"
 uuid = "30fc2ffe-d236-52d8-8643-a9d8f7c094a7"
-version = "0.6.0"
+version = "0.6.1"
 
 [[MKL_jll]]
 deps = ["IntelOpenMP_jll", "Libdl", "Pkg"]
@@ -397,10 +397,10 @@ uuid = "d491faf4-2d78-11e9-2867-c94bc002c0b7"
 version = "0.9.9"
 
 [[MLJScientificTypes]]
-deps = ["CategoricalArrays", "ColorTypes", "PrettyTables", "ScientificTypes", "Tables"]
-git-tree-sha1 = "6adfbd10b6bd353e3efcc585f44f551b7b75d60b"
+deps = ["CategoricalArrays", "ColorTypes", "Dates", "PrettyTables", "ScientificTypes", "Tables"]
+git-tree-sha1 = "582d08e1a6853b748fecb9817120346dd01d52e1"
 uuid = "2e2323e0-db8b-457b-ae0d-bdfb3bc63afd"
-version = "0.2.4"
+version = "0.2.5"
 
 [[MLJTuning]]
 deps = ["ComputationalResources", "Distributed", "Distributions", "MLJBase", "MLJModelInterface", "Random", "RecipesBase"]
@@ -601,9 +601,9 @@ version = "0.2.2+0"
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 
 [[ScientificTypes]]
-git-tree-sha1 = "21e0540206c877f0862f95eecd1e4c8fa852431a"
+git-tree-sha1 = "1a9f881c800ea009fb7f8b5274f04e4e8a5faef8"
 uuid = "321657f4-b219-11e9-178b-2701a2544e81"
-version = "0.7.2"
+version = "0.8.0"
 
 [[ScikitLearnBase]]
 deps = ["LinearAlgebra", "Random", "Statistics"]
