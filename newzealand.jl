@@ -1,88 +1,30 @@
-import Pkg; Pkg.activate(".")
-
 using GeoStats
-using DataFrames
-using CSV
-using MLJ
-using Distributed
 using DensityRatioEstimation
-# using ProgressMeter
-using Random
 using LossFunctions
+using ProgressMeter
+using DataFrames
+using MLJ, CSV
+using Random
 
-# read raw data
-df = CSV.read("data/new_zealand/logs_no_duplicates.csv")
-df.FORMATION = categorical(df.FORMATION)
-df.ONSHORE   = categorical(df.ONSHORE)
+# reproducible results
+Random.seed!(123)
 
-# data for formation classification
-dfc = dropmissing(df[[:X,:Y,:Z,:GR,:SP,:DENS,:DTC,:TEMP,:FORMATION,:ONSHORE]])
+# estimators of generalization error
+error_cv( m, p, k, ℒ) = error(PointwiseLearn(m), p, CrossValidation(k, loss=ℒ))
+error_bcv(m, p, r, ℒ) = error(PointwiseLearn(m), p, BlockCrossValidation(r, loss=ℒ))
+error_drv(m, p, k, ℒ) = error(PointwiseLearn(m), p, DensityRatioValidation(k, loss=ℒ, estimator=LSIF(σ=2.0,b=10)))
 
-# create spatial data
-wells = GeoDataFrame(dfc, [:X,:Y,:Z])
-
-variables(wells)
-
-npoints(wells)
-
-formations = groupby(wells, :FORMATION)
-
-fvalues = get.(formations[:values])
-fsizes  = length.(subsets(formations))
-
-ordforms = sortperm(fsizes, rev=true)
-
-G1 = ordforms[1:2]
-G2 = ordforms[3:4]
-G3 = ordforms[5:end];
-
-
-Ω = DataCollection(formations[G1])
-
-groups = groupby(Ω, :ONSHORE)
-
-# onshore (True) first and offshore (False) last
-ordered = sortperm(groups[:values], rev=true)
-
-Ωs, Ωt = groups[ordered]
-
-allvars = keys(variables(wells))
-discard = [:WELL_NAME,:DIRECTIONAL_SURVEY,:ONSHORE,:DEPT,:BS, :FORMATION]
-numeric = collect(setdiff(allvars, discard))
-
-
-# t = RegressionTask((:GR,:DENS,:DTC,:TEMP,:RESD), :SP)
-subtypes(AbstractErrorEstimator)
-
-
-function error_cv(m, p, k, loss)
-    s = PointwiseLearn(m)
-    v = CrossValidation(k, loss=loss)
-    error(s, p, v)
+# true error (known labels)
+function error_empirical(m, p, Ωts, ℒ)
+  results = map(keys(loss)) do var
+    y = targetdata(p)[var]
+    ŷ = solve(p, PointwiseLearn(m))[var]
+    var => LossFunctions.value(ℒ[var], y, ŷ, AggMode.Mean())
+  end
+  Dict(results)
 end
 
-function error_bv(m, p, rᵦ, loss)
-    s = PointwiseLearn(m)
-    v = BlockCrossValidation(rᵦ, loss=loss)
-    error(s, p, v)
-end
-
-function error_wv(m, p, k, loss, σ=15.,b=10)
-    s = PointwiseLearn(m)
-    v = DensityRatioValidation(k, estimator=LSIF(σ=σ,b=b), loss=loss)
-    error(s, p, v)
-end
-
-function error_empirical(m, p, Ωts, loss)
-    ŷ = solve(p, PointwiseLearn(m))
-    y = targetdata(p)
-    result = Dict()
-    for (col, 𝔏) in loss
-        result[col] = LossFunctions.value(𝔏, y[col], ŷ[col], AggMode.Mean())
-    end
-    result
-end
-
+# TODO: simplify the comparison code
 function error_comparison(m, p, Ωts, rᵦ, k, loss, col)
     # parameters for validation methods
     #@assert rᵦ ≥ r "block size smaller than correlation length"
@@ -113,6 +55,39 @@ function error_comparison(m, p, Ωts, rᵦ, k, loss, col)
           drv_results,
           (ACTUAL=actual, MODEL=info(m).name, target=col))
 end
+
+# -------------
+# MAIN SCRIPT
+# -------------
+
+# read/clean raw data
+df  = CSV.read("data/new_zealand/logs_no_duplicates.csv")
+dfc = dropmissing(df[[:X,:Y,:Z,:GR,:SP,:DENS,:DTC,:TEMP,:FORMATION,:ONSHORE]])
+categorical!(dfc, :FORMATION)
+categorical!(dfc, :ONSHORE)
+
+# define spatial data
+wells = GeoDataFrame(dfc, [:X,:Y,:Z])
+
+# group formations in terms of number of points
+formations = groupby(wells, :FORMATION)
+ind = sortperm(npoints.(formations), rev=true)
+G1 = ind[1:2]
+G2 = ind[3:4]
+G3 = ind[5:end]
+
+# only consider formations in G1
+Ω = DataCollection(formations[G1])
+
+# split onshore (True) vs. offshore (False)
+groups = groupby(Ω, :ONSHORE)
+ordered = sortperm(groups[:values], rev=true)
+Ωs, Ωt = groups[ordered]
+
+# distinguish types of variables
+allvars = keys(variables(Ωs))
+discard = [:WELL_NAME,:DIRECTIONAL_SURVEY,:ONSHORE,:DEPT,:BS, :FORMATION]
+numeric = collect(setdiff(allvars, discard))
 
 #TODO find the best rᵦ using variograms
 #EmpiricalVariogram(Ωs, :TEMP)
