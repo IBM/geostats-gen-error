@@ -10,9 +10,9 @@ After cloning the repository, you can either run the scripts
 to reproduce the results in your machine, or plot the results
 that were saved in the repository by the authors.
 
-## Running
-
 Please make sure that you have Julia v1.4 or a newer version.
+
+## Running
 
 From the root folder of the project:
 
