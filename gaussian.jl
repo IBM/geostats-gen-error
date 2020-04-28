@@ -1,3 +1,8 @@
+# instantiate environment
+using Pkg
+push!(empty!(LOAD_PATH), @__DIR__)
+Pkg.instantiate()
+
 using GeoStats
 using SpectralGaussianSimulation
 using DensityRatioEstimation
