@@ -1,34 +1,38 @@
 # Overview
 
 This repository contains the experiments of the paper
-*Hoffimann et. al. 2020. Generalization error of learning models under covariate shift and spatial correlation*.
+*Hoffimann et. al. 2020. Generalization error of learning
+models under covariate shift and spatial correlation*.
 
 # Instructions
 
-After cloning the repository, you can either run the scripts to reproduce the results in your local machine,
-or plot the results that were saved in the repository by the authors.
+After cloning the repository, you can either run the scripts
+to reproduce the results in your machine, or plot the results
+that were saved in the repository by the authors.
 
 ## Running
 
-To reproduce the environment, please go to the root folder and run the following commands:
+Please make sure that you have Julia v1.4 or a newer version.
 
-```julia
-using Pkg
-push!(empty!(LOAD_PATH), @__DIR__)
-Pkg.instantiate()
+From the root folder of the project:
+
+### Gaussian experiment
+
+```bash
+shell> julia --project gaussian.jl
 ```
 
-After the environment is instantiated, you can run the experiments by including them in the session:
+### New Zealand experiment
 
-```julia
-include("gaussian.jl")   # experiment 1
-include("newzealand.jl") # experiment 2
+```shell
+shell> julia --project newzealand.jl
 ```
-
-If you are only interested in inspecting the results, please check the `results` folder in this repository.
 
 ## Plotting
 
-We provide a separate environment for plotting the results. Please start a session in the `results` folder,
-activate the environment with the same commands shown in the previous section, and include the corresponding
-plotting scripts.
+From the `results` folder of the project:
+
+```shell
+shell> julia --project gaussian.jl
+shell> julia --project newzealand.jl
+```
