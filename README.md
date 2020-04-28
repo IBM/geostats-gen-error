@@ -30,9 +30,4 @@ shell> julia --project newzealand.jl
 
 ## Plotting
 
-From the `results` folder of the project:
-
-```shell
-shell> julia --project gaussian.jl
-shell> julia --project newzealand.jl
-```
+Run the same commands but from the `results` folder.
