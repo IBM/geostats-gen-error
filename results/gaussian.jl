@@ -108,9 +108,9 @@ Gadfly.with_theme(theme) do
   set_default_plot_size(24cm, 14cm)
   p = plot(df, x=Col.value(xcols...), y=:ACTUAL, ygroup=:MODEL,
        color=:config, xgroup=Col.index(xcols...),
-       Guide.xlabel("Shift function"),
-       Guide.ylabel("Generalization error"),
-       Guide.title("Error vs. shift function"),
+       Guide.xlabel("Covariate shift"),
+       Guide.ylabel("Error"),
+       Guide.title("Error vs. covariate shift"),
        Guide.colorkey(title="Configuration"),
        Scale.color_discrete_manual(gcolors...),
        Geom.subplot_grid(Guide.ylabel(orientation=:vertical),
@@ -126,7 +126,7 @@ Gadfly.with_theme(theme) do
   p1 = plot(df, x=:areashift, y=Col.value(ycols...),
        xgroup=Col.index(ycols...), color=:rfactor,
        Guide.xlabel("Covariate shift"),
-       Guide.ylabel("Generalization error"),
+       Guide.ylabel("Error"),
        Guide.title("Error vs. covariate shift by methods"),
        Guide.colorkey(title="Correlation length"),
        Scale.color_discrete_manual(gcolors...),
@@ -134,7 +134,7 @@ Gadfly.with_theme(theme) do
   p2 = plot(df, x=:rfactor, y=Col.value(ycols...),
             xgroup=Col.index(ycols...), color=:rfactor,
             Guide.xlabel("Correlation length"),
-            Guide.ylabel("Generalization error"),
+            Guide.ylabel("Error"),
             Guide.title("Error vs. correlation length by methods"),
             Guide.colorkey(title="Correlation length"),
             Scale.color_discrete_manual(gcolors...),
@@ -151,16 +151,16 @@ Gadfly.with_theme(theme) do
   p1 = plot(df, x=:areashift, y=Col.value(ycols...),
        xgroup=:rfactor, color=Col.index(ycols...),
        Guide.xlabel("Covariate shift"),
-       Guide.ylabel("Generalization error"),
+       Guide.ylabel("Error"),
        Guide.title("Error vs. covariate shift by correlation lengths"),
        Guide.colorkey(title="Method"),
        Scale.color_discrete_manual(gcolors...,"brown"),
        Geom.subplot_grid(layer(Geom.line, Stat.smooth)))
-  ycols = (:CV,:BCV,:DRV)
+  xcols = (:CV,:BCV,:DRV)
   ff = filter(row -> row[:config] == "inside", df)
-  p2 = plot(ff, x=:ACTUAL, y=Col.value(ycols...), xgroup=Col.index(ycols...),
-            Guide.xlabel("Actual error"), Guide.ylabel("Estimated error"),
-            Guide.title("Q-Q plot by methods for inside configuration"),
+  p2 = plot(ff, x=Col.value(xcols...), y=:ACTUAL, xgroup=Col.index(xcols...),
+            Guide.xlabel("Method"), Guide.ylabel("ACTUAL"),
+            Guide.title("Q-Q plot by methods (inside configuration)"),
             Geom.subplot_grid(layer(Geom.point,Stat.qq),
                               layer(Geom.abline(color="black",style=:dash))))
   p = vstack(p1, p2)
