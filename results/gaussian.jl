@@ -158,7 +158,7 @@ Gadfly.with_theme(theme) do
   ff = filter(row -> row[:config] == "inside", df)
   p2 = plot(ff, x=:ACTUAL, y=Col.value(ycols...), xgroup=Col.index(ycols...),
             Guide.xlabel("Actual error"), Guide.ylabel("Estimated error"),
-            Guide.title("Q-Q plot by methods"),
+            Guide.title("Q-Q plot by methods for inside configuration"),
             Geom.subplot_grid(layer(Geom.point,Stat.qq),
                               layer(Geom.abline(color="white",style=:dash))))
   p = vstack(p1, p2)
