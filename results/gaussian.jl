@@ -46,7 +46,7 @@ function jaccard(c₁, r₁, c₂, r₂)
   1 - I / U
 end
 
-jaccard(δ, τ) = jaccard(0.0, 3.0, 3*√2δ, 3τ)
+jaccard(δ, τ) = jaccard(0, 3, 3*√2δ + 0, 3τ)
 
 function areashift(c₁, r₁, c₂, r₂)
   # squared radii
@@ -66,10 +66,14 @@ function areashift(c₁, r₁, c₂, r₂)
   (S + D + 1) / 3
 end
 
-areashift(δ, τ) = areashift(0.0, 3.0, 3*√2δ, 3τ)
+areashift(δ, τ) = areashift(0, 3, 3*√2δ + 0, 3τ)
 
 # covariate shift configuration
-shiftconfig(δ, τ) = 2*√2*δ ≤ 1 - τ ? "inside" : 2*√2*δ ≥ 1 + τ ? "outside" : "neither"
+shiftconfig(δ, τ) = 2δ ≤ 1 - τ ?
+                    "inside" :
+                    2δ ≥ 1 + τ ?
+                    "outside" :
+                    "partial"
 
 # -------------
 # MAIN SCRIPT
@@ -79,9 +83,9 @@ shiftconfig(δ, τ) = 2*√2*δ ≤ 1 - τ ? "inside" : 2*√2*δ ≥ 1 + τ ? "
 df = CSV.read("gaussian.csv", missingstring="NaN")
 df = dropmissing(df)
 
-# shift measures
-for measure in [kldiv, jaccard, areashift]
-  df[!,Symbol(measure)] = measure.(df[!,:δ], df[!,:τ])
+# shift functions
+for fun in [kldiv, jaccard, areashift]
+  df[!,Symbol(fun)] = fun.(df[!,:δ], df[!,:τ])
 end
 
 # shift configuration
@@ -91,9 +95,6 @@ df[!,:config] = shiftconfig.(df[!,:δ], df[!,:τ])
 df[!,:rfactor] = map(df[!,:r]) do r
   @sprintf "r=%.1f" r
 end
-
-# pretty model names (drop "Classifier" suffix)
-df[!,:mname] = chop.(df[!,:MODEL], tail=10)
 
 # set plotting theme
 theme = Gadfly.get_theme(Val(:dark))
@@ -105,7 +106,7 @@ gcolors = ("#1b9e77","#7570b3","#d95f02")
 Gadfly.with_theme(theme) do
   xcols = (:kldiv,:jaccard,:areashift)
   set_default_plot_size(28cm, 10cm)
-  p = plot(df, x=Col.value(xcols...), y=:ACTUAL, ygroup=:mname,
+  p = plot(df, x=Col.value(xcols...), y=:ACTUAL, ygroup=:MODEL,
        color=:config, xgroup=Col.index(xcols...),
        Guide.xlabel("Shift function"),
        Guide.ylabel("Generalization error"),
@@ -114,7 +115,7 @@ Gadfly.with_theme(theme) do
        Scale.color_discrete_manual(gcolors...),
        Geom.subplot_grid(Guide.ylabel(orientation=:vertical),
                          Geom.point, free_x_axis=true))
-  p |> SVG("plot1.svg")
+  p |> SVG("gaussian-plot1.svg")
   p
 end
 
@@ -139,7 +140,7 @@ Gadfly.with_theme(theme) do
             Scale.color_discrete_manual(gcolors...),
             Geom.subplot_grid(Geom.boxplot))
   p = vstack(p1, p2)
-  p |> SVG("plot2.svg")
+  p |> SVG("gaussian-plot2.svg")
   p
 end
 
@@ -162,6 +163,6 @@ Gadfly.with_theme(theme) do
             Geom.subplot_grid(layer(Geom.point,Stat.qq),
                               layer(Geom.abline(color="white",style=:dash))))
   p = vstack(p1, p2)
-  p |> SVG("plot3.svg")
+  p |> SVG("gaussian-plot3.svg")
   p
 end
