@@ -97,15 +97,15 @@ df[!,:rfactor] = map(df[!,:r]) do r
 end
 
 # set plotting theme
-theme = Gadfly.get_theme(Val(:dark))
+theme = Gadfly.get_theme(Val(:default))
 Gadfly.push_theme(theme)
-theme = style(point_size=2px, key_position=:top)
+theme = style(point_size=2.5px, key_position=:top)
 gcolors = ("#1b9e77","#7570b3","#d95f02")
 
 # generalization error vs. shift function
 Gadfly.with_theme(theme) do
   xcols = (:kldiv,:jaccard,:areashift)
-  set_default_plot_size(28cm, 10cm)
+  set_default_plot_size(24cm, 14cm)
   p = plot(df, x=Col.value(xcols...), y=:ACTUAL, ygroup=:MODEL,
        color=:config, xgroup=Col.index(xcols...),
        Guide.xlabel("Shift function"),
@@ -122,7 +122,7 @@ end
 # generalization error by different methods
 Gadfly.with_theme(theme) do
   ycols = (:CV,:BCV,:DRV,:ACTUAL)
-  set_default_plot_size(28cm, 20cm)
+  set_default_plot_size(24cm, 18cm)
   p1 = plot(df, x=:areashift, y=Col.value(ycols...),
        xgroup=Col.index(ycols...), color=:rfactor,
        Guide.xlabel("Covariate shift"),
@@ -146,7 +146,7 @@ end
 
 # generalization error by different correlation lengths
 Gadfly.with_theme(theme) do
-  set_default_plot_size(28cm, 20cm)
+  set_default_plot_size(24cm, 18cm)
   ycols = (:CV,:BCV,:DRV,:ACTUAL)
   p1 = plot(df, x=:areashift, y=Col.value(ycols...),
        xgroup=:rfactor, color=Col.index(ycols...),
@@ -154,6 +154,7 @@ Gadfly.with_theme(theme) do
        Guide.ylabel("Generalization error"),
        Guide.title("Error vs. covariate shift by correlation lengths"),
        Guide.colorkey(title="Method"),
+       Scale.color_discrete_manual(gcolors...,"brown"),
        Geom.subplot_grid(layer(Geom.line, Stat.smooth)))
   ycols = (:CV,:BCV,:DRV)
   ff = filter(row -> row[:config] == "inside", df)
@@ -161,7 +162,7 @@ Gadfly.with_theme(theme) do
             Guide.xlabel("Actual error"), Guide.ylabel("Estimated error"),
             Guide.title("Q-Q plot by methods for inside configuration"),
             Geom.subplot_grid(layer(Geom.point,Stat.qq),
-                              layer(Geom.abline(color="white",style=:dash))))
+                              layer(Geom.abline(color="black",style=:dash))))
   p = vstack(p1, p2)
   p |> SVG("gaussian-plot3.svg")
   p
