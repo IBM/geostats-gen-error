@@ -28,7 +28,7 @@ end
 # generate a covariate shift configuration with given δ and τ
 function covariateshift(δ, τ, r; ns=1, nt=1, size=(100,100))
   μ₁, σ₁ = 0.0, 1.0
-  μ₂, σ₂ = 3*√2*σ₁*δ, τ*σ₁
+  μ₂, σ₂ = (3*√2*σ₁)δ + μ₁, τ*σ₁
   simgs = generator(ns, mean=μ₁, sill=σ₁^2, range=r, size=size)
   timgs = generator(nt, mean=μ₂, sill=σ₂^2, range=r, size=size)
   simgs, timgs
@@ -41,14 +41,19 @@ function problem(; δ=0.0, τ=1.0, r=10.0, size=(100,100))
 
   # sine-norm labeling function
   label(z, p=1) = sin(4*norm(z, p)) < 0 ? 1 : 0
-  f(Γ) = georef(OrderedDict(:LABEL => categorical([label(z) for z in view(Γ, [:Z1,:Z2])])), domain(Γ))
+  function f(Γ)
+    labels = [label(z) for z in view(Γ, [:Z1,:Z2])]
+    ldict  = OrderedDict(:LABEL => categorical(labels))
+    georef(ldict, domain(Γ))
+  end
 
   # add labels to all samples
   Ωss = [join(Ω, f(Ω)) for Ω in simgs]
   Ωts = [join(Ω, f(Ω)) for Ω in timgs]
 
   # geostatistical learning problem
-  p = LearningProblem(Ωss[1], Ωts[1], ClassificationTask((:Z1,:Z2), :LABEL))
+  t = ClassificationTask((:Z1,:Z2), :LABEL)
+  p = LearningProblem(Ωss[1], Ωts[1], t)
 
   # return problem and other Ωt samples
   p, Ωts[2:end]
@@ -76,7 +81,7 @@ function error_empirical(m, p, Ωts, ℒ)
   mean(ϵs)
 end
 
-function error_comparison(m, δ, τ, r, ℒ)
+function experiment(m, δ, τ, r, ℒ)
   # sample a problem
   p, Ωts = problem(δ=δ, τ=τ, r=r)
 
@@ -93,7 +98,10 @@ function error_comparison(m, δ, τ, r, ℒ)
   # actual error (empirical estimate)
   actual = error_empirical(m, p, Ωts, ℒ)
 
-  (δ=δ, τ=τ, r=r, CV=cv, BCV=bcv, DRV=drv, ACTUAL=actual, MODEL=info(m).name)
+  # model name (without "Classifier" suffix)
+  model = chop(info(m).name, tail=10)
+
+  (δ=δ, τ=τ, r=r, CV=cv, BCV=bcv, DRV=drv, ACTUAL=actual, MODEL=model)
 end
 
 # -------------
@@ -117,18 +125,20 @@ rrange = [1e-4,1e+1,2e+1]
 iterator = Iterators.product(mrange, δrange, τrange, rrange)
 progress = Progress(length(iterator), "Gaussian experiment:")
 
-# perform experiment
+# perform experiments
 results = DataFrame()
 for iter in iterator
   m, δ, τ, r = iter
   try
-    push!(results, error_comparison(m, δ, τ, r, ℒ))
+    push!(results, experiment(m, δ, τ, r, ℒ))
   catch e
     e isa InterruptException && break
     println("Skipped m=$m δ=$δ τ=$τ r=$r")
   end
-  next!(progress, showvalues = [(:model,info(m).name), (:δ,δ), (:τ,τ), (:r,r)])
+  model = chop(info(m).name, tail=10)
+  next!(progress, showvalues=[(:model,model), (:δ,δ), (:τ,τ), (:r,r)])
 end
 
 # save results
-CSV.write("results/gaussian.csv", results)
+fname = joinpath(@__DIR__,"results","gaussian.csv")
+CSV.write(fname, results)
