@@ -5,6 +5,7 @@ Pkg.instantiate()
 
 using Gadfly
 using DataFrames
+using Printf
 using CSV
 
 # intersection between two circles
@@ -92,7 +93,12 @@ end
 df[!,:config] = shiftconfig.(df[!,:δ], df[!,:τ])
 
 # correlation length as factor
-df[!,:rfactor] = "r=".*string.(df[!,:r])
+df[!,:rfactor] = map(df[!,:r]) do r
+  @sprintf "r=%.1f" r
+end
+
+# pretty model names (drop "Classifier" suffix)
+df[!,:mname] = chop.(df[!,:MODEL], tail=10)
 
 # set plotting theme
 theme = Gadfly.get_theme(Val(:dark))
@@ -104,14 +110,17 @@ gcolors = ("#1b9e77","#7570b3","#d95f02")
 Gadfly.with_theme(theme) do
   xcols = (:kldiv,:jaccard,:areashift)
   set_default_plot_size(28cm, 10cm)
-  plot(df, x=Col.value(xcols...), y=:ACTUAL, ygroup=:MODEL,
+  p = plot(df, x=Col.value(xcols...), y=:ACTUAL, ygroup=:mname,
        color=:config, xgroup=Col.index(xcols...),
        Guide.xlabel("Shift function"),
        Guide.ylabel("Generalization error"),
        Guide.title("Error vs. shift function"),
        Guide.colorkey(title="Configuration"),
        Scale.color_discrete_manual(gcolors...),
-       Geom.subplot_grid(Geom.point, free_x_axis=true))
+       Geom.subplot_grid(Guide.ylabel(orientation=:vertical),
+                         Geom.point, free_x_axis=true))
+  p |> SVG("plot1.svg")
+  p
 end
 
 # generalization error by different methods
@@ -134,18 +143,22 @@ Gadfly.with_theme(theme) do
             Guide.colorkey(title="Correlation length"),
             Scale.color_discrete_manual(gcolors...),
             Geom.subplot_grid(Geom.boxplot))
-  vstack(p1, p2)
+  p = vstack(p1, p2)
+  p |> SVG("plot2.svg")
+  p
 end
 
 # generalization error by different correlation lengths
 Gadfly.with_theme(theme) do
   set_default_plot_size(28cm, 10cm)
   ycols = (:CV,:BCV,:DRV,:ACTUAL)
-  plot(df, x=:areashift, y=Col.value(ycols...),
+  p = plot(df, x=:areashift, y=Col.value(ycols...),
        xgroup=:rfactor, color=Col.index(ycols...),
        Guide.xlabel("Covariate shift"),
        Guide.ylabel("Generalization error"),
        Guide.title("Error vs. covariate shift by correlation lengths"),
        Guide.colorkey(title="Method"),
        Geom.subplot_grid(layer(Geom.line, Stat.smooth)))
+       p |> SVG("plot3.svg")
+       p
 end
