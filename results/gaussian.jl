@@ -79,11 +79,6 @@ shiftconfig(δ, τ) = 2*√2*δ ≤ 1 - τ ? "inside" : 2*√2*δ ≥ 1 + τ ? "
 df = CSV.read("gaussian.csv", missingstring="NaN")
 df = dropmissing(df)
 
-# difference with actual error
-df[!,:δCV]  = df[!,:CV]  - df[!,:ACTUAL]
-df[!,:δBCV] = df[!,:BCV] - df[!,:ACTUAL]
-df[!,:δDRV] = df[!,:DRV] - df[!,:ACTUAL]
-
 # shift measures
 for measure in [kldiv, jaccard, areashift]
   df[!,Symbol(measure)] = measure.(df[!,:δ], df[!,:τ])
@@ -150,15 +145,23 @@ end
 
 # generalization error by different correlation lengths
 Gadfly.with_theme(theme) do
-  set_default_plot_size(28cm, 10cm)
+  set_default_plot_size(28cm, 20cm)
   ycols = (:CV,:BCV,:DRV,:ACTUAL)
-  p = plot(df, x=:areashift, y=Col.value(ycols...),
+  p1 = plot(df, x=:areashift, y=Col.value(ycols...),
        xgroup=:rfactor, color=Col.index(ycols...),
        Guide.xlabel("Covariate shift"),
        Guide.ylabel("Generalization error"),
        Guide.title("Error vs. covariate shift by correlation lengths"),
        Guide.colorkey(title="Method"),
        Geom.subplot_grid(layer(Geom.line, Stat.smooth)))
-       p |> SVG("plot3.svg")
-       p
+  ycols = (:CV,:BCV,:DRV)
+  ff = filter(row -> row[:config] == "inside", df)
+  p2 = plot(ff, x=:ACTUAL, y=Col.value(ycols...), xgroup=Col.index(ycols...),
+            Guide.xlabel("Actual error"), Guide.ylabel("Estimated error"),
+            Guide.title("Q-Q plot by methods"),
+            Geom.subplot_grid(layer(Geom.point,Stat.qq),
+                              layer(Geom.abline(color="white",style=:dash))))
+  p = vstack(p1, p2)
+  p |> SVG("plot3.svg")
+  p
 end
