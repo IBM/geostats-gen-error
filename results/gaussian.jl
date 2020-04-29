@@ -99,7 +99,9 @@ end
 # set plotting theme
 theme = Gadfly.get_theme(Val(:default))
 Gadfly.push_theme(theme)
-theme = style(point_size=2.5px, key_position=:top)
+theme = style(point_size=2.5px,
+              key_position=:top,
+              default_color=colorant"black")
 gcolors = ("#1b9e77","#7570b3","#d95f02")
 
 # generalization error vs. shift function
