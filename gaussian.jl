@@ -15,7 +15,7 @@ using LinearAlgebra
 using Random
 
 # reproducible results
-Random.seed!(123)
+Random.seed!(2020)
 
 # generate random images with given spatial mean, range and sill
 function generator(nimgs=1; mean=0., range=1., sill=1., size=(100,100))
