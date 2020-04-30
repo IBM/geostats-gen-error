@@ -102,7 +102,7 @@ Gadfly.push_theme(theme)
 theme = style(point_size=2.5px,
               key_position=:top,
               default_color=colorant"black")
-gcolors = ("#1b9e77","#7570b3","#d95f02")
+colors = ("#1b9e77","#7570b3","#d95f02")
 
 # generalization error vs. shift function
 Gadfly.with_theme(theme) do
@@ -114,7 +114,7 @@ Gadfly.with_theme(theme) do
        Guide.ylabel("Error"),
        Guide.title("Error vs. covariate shift"),
        Guide.colorkey(title="Configuration"),
-       Scale.color_discrete_manual(gcolors...),
+       Scale.color_discrete_manual(colors...),
        Geom.subplot_grid(Guide.ylabel(orientation=:vertical),
                          Geom.point, free_x_axis=true))
   p |> SVG("gaussian-plot1.svg")
@@ -131,7 +131,7 @@ Gadfly.with_theme(theme) do
        Guide.ylabel("Error"),
        Guide.title("Error vs. covariate shift by methods"),
        Guide.colorkey(title="Correlation length"),
-       Scale.color_discrete_manual(gcolors...),
+       Scale.color_discrete_manual(colors...),
        Geom.subplot_grid(Geom.point))
   p2 = plot(df, x=:rfactor, y=Col.value(ycols...),
             xgroup=Col.index(ycols...), color=:rfactor,
@@ -139,7 +139,7 @@ Gadfly.with_theme(theme) do
             Guide.ylabel("Error"),
             Guide.title("Error vs. correlation length by methods"),
             Guide.colorkey(title="Correlation length"),
-            Scale.color_discrete_manual(gcolors...),
+            Scale.color_discrete_manual(colors...),
             Geom.subplot_grid(Geom.boxplot))
   p = vstack(p1, p2)
   p |> SVG("gaussian-plot2.svg")
@@ -150,14 +150,13 @@ end
 Gadfly.with_theme(theme) do
   set_default_plot_size(24cm, 18cm)
   ycols = (:CV,:BCV,:DRV,:ACTUAL)
-  colors = ("#1b9e77","#7570b3","#e7298a","#d95f02")
   p1 = plot(df, x=:areashift, y=Col.value(ycols...),
        xgroup=:rfactor, color=Col.index(ycols...),
        Guide.xlabel("Covariate shift"),
        Guide.ylabel("Error"),
        Guide.title("Error vs. covariate shift by correlation lengths"),
        Guide.colorkey(title="Method"),
-       Scale.color_discrete_manual(colors...,),
+       Scale.color_discrete_manual(colors...),
        Geom.subplot_grid(layer(Geom.line, Stat.smooth)))
   xcols = (:CV,:BCV,:DRV)
   ff = filter(row -> row[:config] == "inside", df)
