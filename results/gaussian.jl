@@ -10,7 +10,6 @@ using CSV
 
 # intersection between two circles
 function intersection(c₁, r₁, c₂, r₂)
-  # squared radii
   a = r₁ * r₁
   b = r₂ * r₂
 
@@ -34,11 +33,8 @@ end
 kldiv(δ, τ) = (1 / 2) * log(τ^2) + (δ^2 - τ + 1) / τ
 
 function jaccard(c₁, r₁, c₂, r₂)
-  # squared radii
   a = r₁ * r₁
   b = r₂ * r₂
-
-  d = sqrt(2 * (c₁ - c₂) * (c₁ - c₂))
 
   I = intersection(c₁, r₁, c₂, r₂)
   U = π * a + π * b - I
@@ -49,21 +45,16 @@ end
 jaccard(δ, τ) = jaccard(0, 3, 3*√2δ + 0, 3τ)
 
 function areashift(c₁, r₁, c₂, r₂)
-  # squared radii
   a = r₁ * r₁
   b = r₂ * r₂
 
-  d = sqrt(2 * (c₁ - c₂) * (c₁ - c₂))
-
+  # (outside - inside) / source
   I = intersection(c₁, r₁, c₂, r₂)
+  O = π * b - I
+  S = π * a
+  R = (O - I) / S
 
-  # distance size
-  D = (π * d * d) / (π * 4a)
-
-  # outside vs. inside
-  S = (π * b - 2I) / (π * a)
-
-  (S + D + 1) / 3
+  (R + 1) / 2
 end
 
 areashift(δ, τ) = areashift(0, 3, 3*√2δ + 0, 3τ)
@@ -84,9 +75,9 @@ df = CSV.read("gaussian.csv", missingstring="NaN")
 df = dropmissing(df)
 
 # shift functions
-for fun in [kldiv, jaccard, areashift]
-  df[!,Symbol(fun)] = fun.(df[!,:δ], df[!,:τ])
-end
+df[!,:kldiv]     = kldiv.(df[!,:δ], df[!,:τ])
+df[!,:jaccard]   = jaccard.(df[!,:δ], df[!,:τ])
+df[!,:areashift] = areashift.(df[!,:δ], df[!,:τ])
 
 # shift configuration
 df[!,:config] = shiftconfig.(df[!,:δ], df[!,:τ])
