@@ -30,7 +30,7 @@ end
 # -----------------
 # SHIFT FUNCTIONS
 # -----------------
-kldiv(δ, τ) = (1 / 2) * log(τ^2) + (δ^2 - τ + 1) / τ
+kldiv(δ, τ) = δ^2 + τ^2 - log(τ^4) - 1
 
 function jaccard(c₁, r₁, c₂, r₂)
   a = r₁ * r₁
@@ -44,7 +44,7 @@ end
 
 jaccard(δ, τ) = jaccard(0, 3, 3*√2δ + 0, 3τ)
 
-function areashift(c₁, r₁, c₂, r₂)
+function novelty(c₁, r₁, c₂, r₂)
   a = r₁ * r₁
   b = r₂ * r₂
 
@@ -57,7 +57,7 @@ function areashift(c₁, r₁, c₂, r₂)
   (R + 1) / 2
 end
 
-areashift(δ, τ) = areashift(0, 3, 3*√2δ + 0, 3τ)
+novelty(δ, τ) = novelty(0, 3, 3*√2δ + 0, 3τ)
 
 # covariate shift configuration
 shiftconfig(δ, τ) = 2δ ≤ 1 - τ ?
@@ -75,9 +75,9 @@ df = CSV.read("gaussian.csv", missingstring="NaN")
 df = dropmissing(df)
 
 # shift functions
-df[!,:kldiv]     = kldiv.(df[!,:δ], df[!,:τ])
-df[!,:jaccard]   = jaccard.(df[!,:δ], df[!,:τ])
-df[!,:areashift] = areashift.(df[!,:δ], df[!,:τ])
+df[!,:kldiv]   = kldiv.(df[!,:δ], df[!,:τ])
+df[!,:jaccard] = jaccard.(df[!,:δ], df[!,:τ])
+df[!,:novelty] = novelty.(df[!,:δ], df[!,:τ])
 
 # shift configuration
 df[!,:config] = shiftconfig.(df[!,:δ], df[!,:τ])
@@ -97,7 +97,7 @@ colors = ("#1b9e77","#7570b3","#d95f02")
 
 # generalization error vs. shift function
 Gadfly.with_theme(theme) do
-  xcols = (:kldiv,:jaccard,:areashift)
+  xcols = (:kldiv,:jaccard,:novelty)
   set_default_plot_size(24cm, 14cm)
   p = plot(df, x=Col.value(xcols...), y=:ACTUAL, ygroup=:MODEL,
        color=:config, xgroup=Col.index(xcols...),
@@ -116,7 +116,7 @@ end
 Gadfly.with_theme(theme) do
   ycols = (:CV,:BCV,:DRV,:ACTUAL)
   set_default_plot_size(24cm, 18cm)
-  p1 = plot(df, x=:areashift, y=Col.value(ycols...),
+  p1 = plot(df, x=:novelty, y=Col.value(ycols...),
        xgroup=Col.index(ycols...), color=:rfactor,
        Guide.xlabel("Covariate shift"),
        Guide.ylabel("Error"),
@@ -141,7 +141,7 @@ end
 Gadfly.with_theme(theme) do
   set_default_plot_size(24cm, 18cm)
   ycols = (:CV,:BCV,:DRV,:ACTUAL)
-  p1 = plot(df, x=:areashift, y=Col.value(ycols...),
+  p1 = plot(df, x=:novelty, y=Col.value(ycols...),
        xgroup=:rfactor, color=Col.index(ycols...),
        Guide.xlabel("Covariate shift"),
        Guide.ylabel("Error"),
