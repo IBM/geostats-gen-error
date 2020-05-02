@@ -72,12 +72,16 @@ shiftconfig(δ, τ) = 2δ ≤ 1 - τ ?
 
 # load results table
 df = CSV.read("gaussian.csv", missingstring="NaN")
+
+# drop outliers due to numerical instability
+df = filter(row -> row[:DRV] ≤ 0.5, df)
 df = dropmissing(df)
 
+
 # shift functions
-df[!,:kldiv]   = kldiv.(df[!,:δ], df[!,:τ])
-df[!,:jaccard] = jaccard.(df[!,:δ], df[!,:τ])
-df[!,:novelty] = novelty.(df[!,:δ], df[!,:τ])
+df[!,:KLDivergence]    = kldiv.(df[!,:δ], df[!,:τ])
+df[!,:JaccardDistance] = jaccard.(df[!,:δ], df[!,:τ])
+df[!,:NoveltyFactor]   = novelty.(df[!,:δ], df[!,:τ])
 
 # shift configuration
 df[!,:config] = shiftconfig.(df[!,:δ], df[!,:τ])
@@ -97,17 +101,21 @@ colors = ("#1b9e77","#7570b3","#d95f02")
 
 # generalization error vs. shift function
 Gadfly.with_theme(theme) do
-  xcols = (:kldiv,:jaccard,:novelty)
+  xcols = (:KLDivergence,:JaccardDistance,:NoveltyFactor)
   set_default_plot_size(24cm, 14cm)
-  p = plot(df, x=Col.value(xcols...), y=:ACTUAL, ygroup=:MODEL,
-       color=:config, xgroup=Col.index(xcols...),
+  p = plot(df, x=Col.value(xcols...), y=:ACTUAL,
+       xgroup=Col.index(xcols...), ygroup=:MODEL,
+       color=:config,
        Guide.xlabel("Covariate shift"),
        Guide.ylabel("Error"),
        Guide.title("Error vs. covariate shift"),
        Guide.colorkey(title="Configuration"),
        Scale.color_discrete_manual(colors...),
-       Geom.subplot_grid(Guide.ylabel(orientation=:vertical),
-                         Geom.point, free_x_axis=true))
+       Geom.subplot_grid(layer(Geom.point), free_x_axis=true,
+                         layer(yintercept=[0.0], Geom.hline(color=colors[1], style=:dash)),
+                         layer(yintercept=[0.5], Geom.hline(color=colors[3], style=:dash)),
+                         Coord.cartesian(ymax=0.5),
+                         Guide.ylabel(orientation=:vertical)))
   p |> SVG("gaussian-plot1.svg")
   p
 end
@@ -116,14 +124,17 @@ end
 Gadfly.with_theme(theme) do
   ycols = (:CV,:BCV,:DRV,:ACTUAL)
   set_default_plot_size(24cm, 18cm)
-  p1 = plot(df, x=:novelty, y=Col.value(ycols...),
+  p1 = plot(df, x=:NoveltyFactor, y=Col.value(ycols...),
        xgroup=Col.index(ycols...), color=:rfactor,
        Guide.xlabel("Covariate shift"),
        Guide.ylabel("Error"),
        Guide.title("Error vs. covariate shift by methods"),
        Guide.colorkey(title="Correlation length"),
        Scale.color_discrete_manual(colors...),
-       Geom.subplot_grid(Geom.point))
+       Geom.subplot_grid(layer(Geom.point),
+                         layer(yintercept=[0.0], Geom.hline(color="gray", style=:dash)),
+                         layer(yintercept=[0.5], Geom.hline(color="gray", style=:dash)),
+                         Coord.cartesian(ymax=0.5)))
   p2 = plot(df, x=:rfactor, y=Col.value(ycols...),
             xgroup=Col.index(ycols...), color=:rfactor,
             Guide.xlabel("Correlation length"),
@@ -138,17 +149,23 @@ Gadfly.with_theme(theme) do
 end
 
 # generalization error by different correlation lengths
-Gadfly.with_theme(theme) do
+theme2 = style(point_size=1.8px,
+               key_position=:top,
+               default_color=colorant"black")
+Gadfly.with_theme(theme2) do
   set_default_plot_size(24cm, 18cm)
   ycols = (:CV,:BCV,:DRV,:ACTUAL)
-  p1 = plot(df, x=:novelty, y=Col.value(ycols...),
+  p1 = plot(df, x=:NoveltyFactor, y=Col.value(ycols...),
        xgroup=:rfactor, color=Col.index(ycols...),
        Guide.xlabel("Covariate shift"),
        Guide.ylabel("Error"),
        Guide.title("Error vs. covariate shift by correlation lengths"),
        Guide.colorkey(title="Method"),
        Scale.color_discrete_manual(colors...),
-       Geom.subplot_grid(layer(Geom.line, Stat.smooth)))
+       Geom.subplot_grid(layer(Geom.point), layer(Geom.line, Stat.smooth),
+                         layer(yintercept=[0.0], Geom.hline(color="gray", style=:dash)),
+                         layer(yintercept=[0.5], Geom.hline(color="gray", style=:dash)),
+                         Coord.cartesian(ymax=0.5)))
   xcols = (:CV,:BCV,:DRV)
   ff = filter(row -> row[:config] == "inside", df)
   p2 = plot(ff, x=Col.value(xcols...), y=:ACTUAL, xgroup=Col.index(xcols...),
