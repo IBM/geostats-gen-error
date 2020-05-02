@@ -134,7 +134,7 @@ Gadfly.with_theme(theme) do
        Geom.subplot_grid(layer(Geom.point),
                          layer(yintercept=[0.0], Geom.hline(color="gray", style=:dash)),
                          layer(yintercept=[0.5], Geom.hline(color="gray", style=:dash)),
-                         Coord.cartesian(ymax=0.5)))
+                         Coord.cartesian(xmax=0.8, ymax=0.5)))
   p2 = plot(df, x=:rfactor, y=Col.value(ycols...),
             xgroup=Col.index(ycols...), color=:rfactor,
             Guide.xlabel("Correlation length"),
@@ -165,12 +165,12 @@ Gadfly.with_theme(theme2) do
        Geom.subplot_grid(layer(Geom.point), layer(Geom.line, Stat.smooth),
                          layer(yintercept=[0.0], Geom.hline(color="gray", style=:dash)),
                          layer(yintercept=[0.5], Geom.hline(color="gray", style=:dash)),
-                         Coord.cartesian(ymax=0.5)))
+                         Coord.cartesian(xmax=0.8,ymax=0.5)))
   xcols = (:CV,:BCV,:DRV)
   ff = filter(row -> row[:config] == "inside", df)
   p2 = plot(ff, x=Col.value(xcols...), y=:ACTUAL, xgroup=Col.index(xcols...),
             Guide.xlabel("Method"), Guide.ylabel("ACTUAL"),
-            Guide.title("Q-Q plot by methods (inside configuration)"),
+            Guide.title("Q-Q plot by methods for inside configuration"),
             Geom.subplot_grid(layer(Geom.point,Stat.qq),
                               layer(Geom.abline(color="grey",style=:dot))))
   p = vstack(p1, p2)
