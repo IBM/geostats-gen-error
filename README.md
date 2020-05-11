@@ -21,7 +21,7 @@ From the root folder of the project:
 shell> julia --project gaussian.jl
 
 # New Zealand experiment
-shell> julia --project newzeland.jl
+shell> julia --project newzealand.jl
 ```
 
 ## Plotting
