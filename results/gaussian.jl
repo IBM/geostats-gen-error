@@ -12,7 +12,6 @@ using CSV
 function intersection(c₁, r₁, c₂, r₂)
   a = r₁ * r₁
   b = r₂ * r₂
-
   d = sqrt(2 * (c₁ - c₂) * (c₁ - c₂))
 
   # trivial cases
@@ -20,11 +19,11 @@ function intersection(c₁, r₁, c₂, r₂)
   d ≤ abs(r₂ - r₁) && return π * min(a, b)
 
   # general case
-  A1 = b * acos((d * d + b - a) / (2d*r₂))
-  A2 = a * acos((d * d + a - b) / (2d*r₁))
-  A3 = (1 / 2) * sqrt((-d + r₂ + r₁) * (d + r₂ - r₁) * (d - r₂ + r₁) * (d + r₂ + r₁))
+  C1 = a * acos((d * d + a - b) / (2d*r₁))
+  C2 = b * acos((d * d + b - a) / (2d*r₂))
+  C3 = (1 / 2) * sqrt((-d + r₂ + r₁) * (d + r₂ - r₁) * (d - r₂ + r₁) * (d + r₂ + r₁))
 
-  A1 + A2 - A3
+  C1 + C2 - C3
 end
 
 # -----------------
@@ -33,11 +32,8 @@ end
 kldiv(δ, τ) = δ^2 + τ^2 - log(τ^4) - 1
 
 function jaccard(c₁, r₁, c₂, r₂)
-  a = r₁ * r₁
-  b = r₂ * r₂
-
   I = intersection(c₁, r₁, c₂, r₂)
-  U = π * a + π * b - I
+  U = π * r₁^2 + π * r₂^2 - I
 
   1 - I / U
 end
@@ -45,14 +41,10 @@ end
 jaccard(δ, τ) = jaccard(0, 3, 3*√2δ + 0, 3τ)
 
 function novelty(c₁, r₁, c₂, r₂)
-  a = r₁ * r₁
-  b = r₂ * r₂
-
-  # (outside - inside) / source
   I = intersection(c₁, r₁, c₂, r₂)
-  O = π * b - I
-  S = π * a
-  R = (O - I) / S
+  O = π * r₂^2 - I
+  B = π * r₂^2
+  R = (O - I) / B
 
   (R + 1) / 2
 end
@@ -107,14 +99,14 @@ Gadfly.with_theme(theme) do
        xgroup=Col.index(xcols...), ygroup=:MODEL,
        color=:config,
        Guide.xlabel("Covariate shift"),
-       Guide.ylabel("Error"),
+       Guide.ylabel("Error by models"),
        Guide.title("Error vs. covariate shift"),
        Guide.colorkey(title="Configuration"),
        Scale.color_discrete_manual(colors...),
        Geom.subplot_grid(layer(Geom.point), free_x_axis=true,
-                         layer(yintercept=[0.0], Geom.hline(color=colors[1], style=:dash)),
-                         layer(yintercept=[0.5], Geom.hline(color=colors[3], style=:dash)),
-                         Coord.cartesian(ymax=0.5),
+                         layer(yintercept=[0.0], Geom.hline(color="gray", style=:dash)),
+                         layer(yintercept=[0.5], Geom.hline(color="gray", style=:dash)),
+                         Coord.cartesian(xmin=0.0,ymax=0.5),
                          Guide.ylabel(orientation=:vertical)))
   p |> SVG("gaussian-plot1.svg")
   p
@@ -126,20 +118,20 @@ Gadfly.with_theme(theme) do
   set_default_plot_size(24cm, 18cm)
   p1 = plot(df, x=:NoveltyFactor, y=Col.value(ycols...),
        xgroup=Col.index(ycols...), color=:rfactor,
-       Guide.xlabel("Covariate shift"),
+       Guide.xlabel("Covariate shift by methods"),
        Guide.ylabel("Error"),
-       Guide.title("Error vs. covariate shift by methods"),
+       Guide.title("Error vs. covariate shift"),
        Guide.colorkey(title="Correlation length"),
        Scale.color_discrete_manual(colors...),
        Geom.subplot_grid(layer(Geom.point),
                          layer(yintercept=[0.0], Geom.hline(color="gray", style=:dash)),
                          layer(yintercept=[0.5], Geom.hline(color="gray", style=:dash)),
-                         Coord.cartesian(xmax=0.8, ymax=0.5)))
+                         Coord.cartesian(xmin=0.0,xmax=1.0,ymax=0.5)))
   p2 = plot(df, x=:rfactor, y=Col.value(ycols...),
             xgroup=Col.index(ycols...), color=:rfactor,
-            Guide.xlabel("Correlation length"),
+            Guide.xlabel("Correlation length by methods"),
             Guide.ylabel("Error"),
-            Guide.title("Error vs. correlation length by methods"),
+            Guide.title("Error vs. correlation length"),
             Guide.colorkey(title="Correlation length"),
             Scale.color_discrete_manual(colors...),
             Geom.subplot_grid(Geom.boxplot))
@@ -157,20 +149,20 @@ Gadfly.with_theme(theme2) do
   ycols = (:CV,:BCV,:DRV,:ACTUAL)
   p1 = plot(df, x=:NoveltyFactor, y=Col.value(ycols...),
        xgroup=:rfactor, color=Col.index(ycols...),
-       Guide.xlabel("Covariate shift"),
+       Guide.xlabel("Covariate shift by correlation length"),
        Guide.ylabel("Error"),
-       Guide.title("Error vs. covariate shift by correlation lengths"),
+       Guide.title("Error vs. covariate shift"),
        Guide.colorkey(title="Method"),
        Scale.color_discrete_manual(colors...),
        Geom.subplot_grid(layer(Geom.point), layer(Geom.line, Stat.smooth),
                          layer(yintercept=[0.0], Geom.hline(color="gray", style=:dash)),
                          layer(yintercept=[0.5], Geom.hline(color="gray", style=:dash)),
-                         Coord.cartesian(xmax=0.8,ymax=0.5)))
+                         Coord.cartesian(xmin=0.0,xmax=1.0,ymax=0.5)))
   xcols = (:CV,:BCV,:DRV)
   ff = filter(row -> row[:config] == "inside", df)
   p2 = plot(ff, x=Col.value(xcols...), y=:ACTUAL, xgroup=Col.index(xcols...),
-            Guide.xlabel("Method"), Guide.ylabel("ACTUAL"),
-            Guide.title("Q-Q plot by methods for inside configuration"),
+            Guide.xlabel("Estimated Error"), Guide.ylabel("Actual Error"),
+            Guide.title("Q-Q plot for inside configuration"),
             Geom.subplot_grid(layer(Geom.point,Stat.qq),
                               layer(Geom.abline(color="grey",style=:dot))))
   p = vstack(p1, p2)
