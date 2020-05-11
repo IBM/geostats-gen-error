@@ -1,7 +1,5 @@
 # instantiate environment
-using Pkg
-push!(empty!(LOAD_PATH), @__DIR__)
-Pkg.instantiate()
+using Pkg; Pkg.instantiate()
 
 using Gadfly
 using DataFrames

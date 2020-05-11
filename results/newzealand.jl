@@ -1,65 +1,36 @@
-using GeoStats
-using DataFrames
+# instantiate environment
+using Pkg; Pkg.instantiate()
+
+using Gadfly
 using CSV
-#using DensityRatioEstimation
-# using ProgressMeter
-using Random
-# using Variography
-using Plots
 
+# -------------
+# MAIN SCRIPT
+# -------------
 
-# read raw data
-df = CSV.read("data/new_zealand/logs_no_duplicates.csv")
-df.FORMATION = categorical(df.FORMATION)
-df.ONSHORE   = categorical(df.ONSHORE)
+# load results table
+df = CSV.read("newzealand.csv", missingstring="NaN")
+df = dropmissing(df)
 
-# data for formation classification
-dfc = dropmissing(df[[:X,:Y,:Z,:GR,:SP,:DENS,:DTC,:TEMP,:FORMATION,:ONSHORE]])
+# set plotting theme
+theme = Gadfly.get_theme(Val(:dark))
+Gadfly.push_theme(theme)
+theme = style(point_size=2.5px,
+              key_position=:top,
+              default_color=colorant"black")
+colors = ("#1b9e77","#7570b3","#d95f02")
 
-# create spatial data
-wells = GeoDataFrame(dfc, [:X,:Y,:Z])
+Gadfly.with_theme(theme) do
+    ycols = (:CV,:BCV,:DRV,:ACTUAL)
+    plot(df, x=:k, y=Col.value(ycols...),
+         xgroup=Col.index(ycols...),
+         Geom.subplot_grid(Geom.boxplot))
+end
 
-variables(wells)
+Gadfly.with_theme(theme) do
+    ycols = (:CV,:BCV,:DRV)
+    plot(df, x=:ACTUAL, y=Col.value(ycols...), Geom.point)
+end
 
-npoints(wells)
-
-formations = groupby(wells, :FORMATION)
-
-Ω = DataCollection(wells)
-
-groups = groupby(Ω, :ONSHORE)
-
-# onshore (True) first and offshore (False) last
-ordered = sortperm(groups[:values], rev=true)
-
-Ωonshore, Ωoffshore = groups[ordered]
-
-allvars = keys(variables(wells))
-discard = [:WELL_NAME,:DIRECTIONAL_SURVEY,:ONSHORE,:DEPT,:BS, :FORMATION]
-numeric = collect(setdiff(allvars, discard))
-
-
-# Do proper variography
-#@time
-
-plt = plot(p_x,p_y,p_z, layout=(3,1))
-savefig(plt, "$(var)_variogram.svg")
-maxlag=100.
-tol = 10.
-nlags = 50
-for var in numeric
-    Ωᵧ = PointSetData(OrderedDict(var=>Ωonshore[var]), coordinates(Ωs))
-    Ωᵧ = sample(Ωᵧ, 10000, replace=false)
-    # EmpiricalVariogram(Ωᵧ, var, maxlag=10)
-
-    p_x = plot(DirectionalVariogram(Ωᵧ, (1., 0., 0.), var,
-               maxlag=maxlag, tol=tol, nlags=nlags),
-               title = "$var, maxlag=$maxlag, axis=x")
-    p_y = plot(DirectionalVariogram(Ωᵧ, (0., 1., 0.), var,
-               maxlag=maxlag, tol=tol, nlags=nlags),
-               title = "$var, maxlag=$maxlag, axis=y")
-    p_z = plot(DirectionalVariogram(Ωᵧ, (0., 0., 1.), var,
-               maxlag=maxlag, tol=tol, nlags=nlags),
-               title = "$var, maxlag=$maxlag, axis=z")
-    plt = plot(p_x,p_y,p_z, layout=(3,1))
-    savefig(plt, "$(var)_variogram.svg")
+# pretty_table(df, backend=:latex, tf=latex_simple,
+             # nosubheader=true, formatters=ft_round(2,3:6))
