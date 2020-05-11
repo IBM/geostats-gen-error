@@ -61,7 +61,7 @@ shiftconfig(δ, τ) = 2δ ≤ 1 - τ ?
 # -------------
 
 # load results table
-df = CSV.read("gaussian.csv", missingstring="NaN")
+df = CSV.read(joinpath(@__DIR__,"gaussian.csv"), missingstring="NaN")
 
 # drop outliers due to numerical instability
 df = filter(row -> row[:DRV] ≤ 0.5, df)
@@ -106,7 +106,7 @@ Gadfly.with_theme(theme) do
                          layer(yintercept=[0.5], Geom.hline(color="gray", style=:dash)),
                          Coord.cartesian(xmin=0.0,ymax=0.5),
                          Guide.ylabel(orientation=:vertical)))
-  p |> SVG("gaussian-plot1.svg")
+  p |> SVG(joinpath(@__DIR__,"gaussian-plot1.svg"))
   p
 end
 
@@ -134,7 +134,7 @@ Gadfly.with_theme(theme) do
             Scale.color_discrete_manual(colors...),
             Geom.subplot_grid(Geom.boxplot))
   p = vstack(p1, p2)
-  p |> SVG("gaussian-plot2.svg")
+  p |> SVG(joinpath(@__DIR__,"gaussian-plot2.svg"))
   p
 end
 
@@ -164,6 +164,6 @@ Gadfly.with_theme(theme2) do
             Geom.subplot_grid(layer(Geom.point,Stat.qq),
                               layer(Geom.abline(color="grey",style=:dot))))
   p = vstack(p1, p2)
-  p |> SVG("gaussian-plot3.svg")
+  p |> SVG(joinpath(@__DIR__,"gaussian-plot3.svg"))
   p
 end
