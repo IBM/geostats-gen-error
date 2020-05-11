@@ -123,20 +123,15 @@ rrange = [1e-4,1e+1,2e+1]
 iterator = Iterators.product(mrange, δrange, τrange, rrange)
 progress = Progress(length(iterator), "Gaussian experiment:")
 
+# return missing in case of failure
+skip = e -> (println("Skipped: $e"); missing)
+
 # perform experiments
-results = DataFrame()
-for iter in iterator
-  m, δ, τ, r = iter
-  try
-    push!(results, experiment(m, δ, τ, r, ℒ))
-  catch e
-    e isa InterruptException && break
-    println("Skipped m=$m δ=$δ τ=$τ r=$r")
-  end
-  model = chop(info(m).name, tail=10)
-  next!(progress, showvalues=[(:model,model), (:δ,δ), (:τ,τ), (:r,r)])
+results = progress_pmap(iterator, progress=progress,
+                        on_error=skip) do (m, δ, τ, r)
+  experiment(m, δ, τ, r, ℒ)
 end
 
 # save results
 fname = joinpath(@__DIR__,"results","gaussian.csv")
-CSV.write(fname, results)
+CSV.write(fname, DataFrame(skipmissing(results)))
