@@ -1,3 +1,5 @@
+using Pkg; Pkg.instantiate()
+
 using GeoStats
 using DensityRatioEstimation
 using LossFunctions
@@ -15,7 +17,7 @@ error_bcv(m, p, r, ℒ) = error(PointwiseLearn(m), p, BlockCrossValidation(r, lo
 error_drv(m, p, k, ℒ) = error(PointwiseLearn(m), p, DensityRatioValidation(k, loss=ℒ, estimator=LSIF(σ=2.0,b=10)))
 
 # true error (known labels)
-function error_empirical(m, p, Ωts, ℒ)
+function error_empirical(m, p, ℒ)
   results = map(keys(loss)) do var
     y = targetdata(p)[var]
     ŷ = solve(p, PointwiseLearn(m))[var]
@@ -24,36 +26,19 @@ function error_empirical(m, p, Ωts, ℒ)
   Dict(results)
 end
 
-# TODO: simplify the comparison code
-function error_comparison(m, p, Ωts, rᵦ, k, loss, col)
-    # parameters for validation methods
-    #@assert rᵦ ≥ r "block size smaller than correlation length"
-
+function experiment(m, p, σ, rᵦ, k, ℒ)
     # try different error estimates
-    loss_dict = Dict(col => loss)
-    println("Performing CV")
-    @time cv = error_cv(m, p, k, loss_dict)[col]
-    @show cv
-    println("Performing BCV")
-    @time bv = error_bv(m, p, rᵦ, loss_dict)[col]
-    drv_results = Dict()
-    for σ in [1., 5., 10., 15.,  20., 25.]
-        println("Performing DRV with σ=$(σ)")
-        try
-            @time drv = error_wv(m, p, k, loss_dict, σ)[col]
-            drv_results[Symbol("DRV_$(Int(σ))")] = drv
-        catch e
-            println("skipping DRV - invalid σ")
-            println(e)
-        end
-    end
+    cv  = error_cv(m, p, k, ℒ)
+    bcv = error_bcv(m, p, rᵦ, ℒ)
+    drv = error_drv(m, p, k, ℒ)
 
     # true error
-    actual = error_empirical(m, p, Ωts,loss_dict)[col]
+    actual = error_empirical(m, p, ℒ)
 
-    merge((rᵦ=rᵦ, k=k, CV=cv, BCV=bv),
-          drv_results,
-          (ACTUAL=actual, MODEL=info(m).name, target=col))
+    map(outputvars(task(p))) do var
+      (rᵦ=rᵦ, k=k, CV=cv[var], BCV=bcv[var], DRV=drv[var],
+       ACTUAL=actual[var], MODEL=info(m).name, TARGET=var)
+    end
 end
 
 # -------------
@@ -61,13 +46,14 @@ end
 # -------------
 
 # read/clean raw data
-df  = CSV.read("data/new_zealand/logs_no_duplicates.csv")
-dfc = dropmissing(df[[:X,:Y,:Z,:GR,:SP,:DENS,:DTC,:TEMP,:FORMATION,:ONSHORE]])
-categorical!(dfc, :FORMATION)
-categorical!(dfc, :ONSHORE)
+df = CSV.read("data/new_zealand/logs_no_duplicates.csv")
+df = df[:,[:X,:Y,:Z,:GR,:SP,:DENS,:DTC,:TEMP,:FORMATION,:ONSHORE]]
+dropmissing!(df)
+categorical!(df, :FORMATION)
+categorical!(df, :ONSHORE)
 
 # define spatial data
-wells = GeoDataFrame(dfc, [:X,:Y,:Z])
+wells = GeoDataFrame(df, [:X,:Y,:Z])
 
 # group formations in terms of number of points
 formations = groupby(wells, :FORMATION)
@@ -80,86 +66,76 @@ G3 = ind[5:end]
 Ω = DataCollection(formations[G1])
 
 # split onshore (True) vs. offshore (False)
-groups = groupby(Ω, :ONSHORE)
-ordered = sortperm(groups[:values], rev=true)
-Ωs, Ωt = groups[ordered]
+onoff = groupby(Ω, :ONSHORE)
+ordered = sortperm(onoff[:values], rev=true)
+Ωs, Ωt = onoff[ordered]
 
 # distinguish types of variables
 allvars = keys(variables(Ωs))
-discard = [:WELL_NAME,:DIRECTIONAL_SURVEY,:ONSHORE,:DEPT,:BS, :FORMATION]
+discard = [:DEPT,:BS,:ONSHORE,:FORMATION]
 numeric = collect(setdiff(allvars, discard))
 
-#TODO find the best rᵦ using variograms
-#EmpiricalVariogram(Ωs, :TEMP)
-rᵦ=500
-k = length(GeoStats.partition(Ωs, BlockPartitioner(rᵦ)))
-show_all(x) = show(stdout, "text/plain", x)
+rᵦ = 500 # TODO: variography
+k  = length(GeoStats.partition(Ωs, BlockPartitioner(rᵦ)))
 
-# --------
-# all_class_models = models(m->m.is_pure_julia && m.is_supervised &&
-#                           m.target_scitype == AbstractVector{<:Finite})
-# show_all(all_class_models)
-#
-# @load DecisionTreeClassifier
-# @load KNNClassifier
-# # mrange = [DecisionTreeClassifier(), KNNClassifier()]
-# class_models = [DecisionTreeClassifier(), KNNClassifier()]
-# loss = ZeroOneLoss()
-# t = ClassificationTask((:GR,:SP,:DENS,:DTC,:TEMP), :FORMATION)
-# problem = LearningProblem(Ωs, Ωt, t)
-#
-# Random.seed!(42)
-#
-# class_results = DataFrame()
-#
-# for model in class_models#, δ in δrange, τ in τrange, r in rrange, ρ in ρrange
-#     @show model, rᵦ, k#, δ, τ, r, ρ
-#     try
-#         result = DataFrame([error_comparison(model, problem, Ωt, rᵦ, k, loss, :FORMATION)
-#                             for i in 1:1])
-#         append!(class_results, result)
-#     catch e
-#         println("skipped")
-#         println(e)
-#     end
-# end
-#
-# CSV.write("results/new_zealand_classification.csv", class_results)
-# println("Classification comparison is done!")
-# --------------------
-all_reg_models = models(m->m.is_pure_julia && m.is_supervised &&
-                        m.target_scitype == AbstractArray{Continuous,1})
+# ---------------
+# CLASSIFICATION
+# ---------------
+t = ClassificationTask((:GR,:SP,:DENS,:DTC,:TEMP), :FORMATION)
+p = LearningProblem(Ωs, Ωt, t)
 
-show_all(all_reg_models)
-Random.seed!(42)
+@load DecisionTreeClassifier
+@load KNNClassifier
 
-reg_results = DataFrame()
+ℒ = Dict(:FORMATION => MisclassLoss())
 
+# parameter ranges
+mrange = [DecisionTreeClassifier(),KNNClassifier()]
+σrange = [1.,5.,10.,15.,20.,25.]
+
+# experiment iterator and progress
+iterator = Iterators.product(mrange, σrange)
+progress = Progress(length(iterator), "New Zealand classification:")
+
+# return missing in case of failure
+skip = e -> (println("Skipped: $e"); missing)
+
+# perform experiments
+cresults = progress_pmap(iterator, progress=progress,
+                        on_error=skip) do (m, σ)
+  experiment(m, p, σ, rᵦ, k, ℒ)
+end
+
+# -----------
+# REGRESSION
+# -----------
 @load LinearRegressor pkg="MLJLinearModels"
 @load DecisionTreeRegressor pkg="DecisionTree"
 @load RandomForestRegressor pkg="DecisionTree"
 @load KNNRegressor
 
-reg_models = [LinearRegressor(), DecisionTreeRegressor(),
-              RandomForestRegressor(), KNNRegressor()]
-loss = L2DistLoss()
+# parameter ranges
+mrange = [LinearRegressor(),DecisionTreeRegressor(),
+          RandomForestRegressor(),KNNRegressor()]
+vrange = [:GR]
 
-for model in reg_models, target in numeric
+# experiment iterator and progress
+iterator = Iterators.product(mrange, σrange, vrange)
+progress = Progress(length(iterator), "New Zealand classification:")
 
-    t = RegressionTask(numeric[numeric .!= target], target)
-    problem = LearningProblem(Ωs, Ωt, t)
-
-    @show model, target, task#, δ, τ, r, ρ
-    try
-        result = DataFrame([error_comparison(model, problem, Ωt, rᵦ, k, loss, target)
-                            for i in 1:1])
-        append!(reg_results, result)
-        @show result
-    catch e
-        println("skipped")
-        println(e)
-    end
-    CSV.write("results/new_zealand_regression_drv.csv", reg_results)
+# perform experiments
+rresults = progress_pmap(iterator, progress=progress,
+                        on_error=skip) do (m, σ, v)
+  t = RegressionTask((), v)
+  p = LearningProblem(Ωs, Ωt, t)
+  ℒ = Dict(v => L2DistLoss())
+  experiment(m, p, σ, rᵦ, k, ℒ)
 end
 
-# CSV.write("results/new_zealand_regression.csv", reg_results)
+# merge all results into dataframe
+all = vcat(cresults, rresults)
+res = DataFrame(skipmissing(Iterators.flatten(all)))
+
+# save all results to disk
+fname = joinpath(@__DIR__,"results","newzealand.csv")
+CSV.write(fname, res)
