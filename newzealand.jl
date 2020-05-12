@@ -18,7 +18,7 @@ error_drv(m, p, k, ℒ) = error(PointwiseLearn(m), p, DensityRatioValidation(k, 
 
 # true error (known labels)
 function error_empirical(m, p, ℒ)
-  results = map(keys(loss)) do var
+  results = map(outputvars(task(p))) do var
     y = targetdata(p)[var]
     ŷ = solve(p, PointwiseLearn(m))[var]
     var => LossFunctions.value(ℒ[var], y, ŷ, AggMode.Mean())
@@ -34,7 +34,6 @@ function experiment(m, p, σ, rᵦ, k, ℒ)
 
     # true error
     actual = error_empirical(m, p, ℒ)
-
     map(outputvars(task(p))) do var
       (rᵦ=rᵦ, k=k, CV=cv[var], BCV=bcv[var], DRV=drv[var],
        ACTUAL=actual[var], MODEL=info(m).name, TARGET=var)
@@ -47,7 +46,7 @@ end
 
 # read/clean raw data
 df = CSV.read("data/new_zealand/logs_no_duplicates.csv")
-df = df[:,[:X,:Y,:Z,:GR,:SP,:DENS,:DTC,:TEMP,:FORMATION,:ONSHORE]]
+df = df[:,[:X,:Y,:Z,:GR,:SP,:DENS,:NEUT,:DTC,:FORMATION,:ONSHORE]]
 dropmissing!(df)
 categorical!(df, :FORMATION)
 categorical!(df, :ONSHORE)
@@ -64,16 +63,16 @@ G3 = ind[5:end]
 
 # only consider formations in G1
 Ω = DataCollection(formations[G1])
-
 # split onshore (True) vs. offshore (False)
 onoff = groupby(Ω, :ONSHORE)
 ordered = sortperm(onoff[:values], rev=true)
 Ωs, Ωt = onoff[ordered]
 
+# Ωs = sample(Ωs, 100)
+# Ωt = sample(Ωt, 100)
+
 # distinguish types of variables
-allvars = keys(variables(Ωs))
-discard = [:DEPT,:BS,:ONSHORE,:FORMATION]
-numeric = collect(setdiff(allvars, discard))
+numeric = [:GR, :SP, :DENS, :NEUT, :DTC]
 
 rᵦ = 500 # TODO: variography
 k  = length(GeoStats.partition(Ωs, BlockPartitioner(rᵦ)))
@@ -81,7 +80,7 @@ k  = length(GeoStats.partition(Ωs, BlockPartitioner(rᵦ)))
 # ---------------
 # CLASSIFICATION
 # ---------------
-t = ClassificationTask((:GR,:SP,:DENS,:DTC,:TEMP), :FORMATION)
+t = ClassificationTask((:GR,:SP,:DENS,:DTC,:NEUT), :FORMATION)
 p = LearningProblem(Ωs, Ωt, t)
 
 @load DecisionTreeClassifier
@@ -126,15 +125,15 @@ progress = Progress(length(iterator), "New Zealand classification:")
 # perform experiments
 rresults = progress_pmap(iterator, progress=progress,
                         on_error=skip) do (m, σ, v)
-  t = RegressionTask((), v)
+  t = RegressionTask(numeric[numeric .!= v], v)
   p = LearningProblem(Ωs, Ωt, t)
   ℒ = Dict(v => L2DistLoss())
   experiment(m, p, σ, rᵦ, k, ℒ)
 end
 
 # merge all results into dataframe
-all = vcat(cresults, rresults)
-res = DataFrame(skipmissing(Iterators.flatten(all)))
+all_res = vcat(cresults, rresults)
+res = DataFrame(skipmissing(Iterators.flatten(all_res)))
 
 # save all results to disk
 fname = joinpath(@__DIR__,"results","newzealand.csv")
