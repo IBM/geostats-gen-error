@@ -63,6 +63,7 @@ G3 = ind[5:end]
 
 # only consider formations in G1
 Ω = DataCollection(formations[G1])
+
 # split onshore (True) vs. offshore (False)
 onoff = groupby(Ω, :ONSHORE)
 ordered = sortperm(onoff[:values], rev=true)
@@ -71,8 +72,8 @@ ordered = sortperm(onoff[:values], rev=true)
 # Ωs = sample(Ωs, 100)
 # Ωt = sample(Ωt, 100)
 
-# distinguish types of variables
-numeric = [:GR, :SP, :DENS, :NEUT, :DTC]
+# logs used in the experiment
+logs = [:GR,:SP,:DENS,:NEUT,:DTC]
 
 rᵦ = 500 # TODO: variography
 k  = length(GeoStats.partition(Ωs, BlockPartitioner(rᵦ)))
@@ -125,15 +126,15 @@ progress = Progress(length(iterator), "New Zealand classification:")
 # perform experiments
 rresults = progress_pmap(iterator, progress=progress,
                         on_error=skip) do (m, σ, v)
-  t = RegressionTask(numeric[numeric .!= v], v)
+  t = RegressionTask(logs[logs.!=v], v)
   p = LearningProblem(Ωs, Ωt, t)
   ℒ = Dict(v => L2DistLoss())
   experiment(m, p, σ, rᵦ, k, ℒ)
 end
 
 # merge all results into dataframe
-all_res = vcat(cresults, rresults)
-res = DataFrame(skipmissing(Iterators.flatten(all_res)))
+all = vcat(cresults, rresults)
+res = DataFrame(skipmissing(Iterators.flatten(all)))
 
 # save all results to disk
 fname = joinpath(@__DIR__,"results","newzealand.csv")
