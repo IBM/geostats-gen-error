@@ -1,3 +1,4 @@
+# instantiate environment
 using Pkg; Pkg.instantiate()
 
 using GeoStats
@@ -14,7 +15,7 @@ Random.seed!(123)
 # estimators of generalization error
 error_cv( m, p, k, ℒ) = error(PointwiseLearn(m), p, CrossValidation(k, loss=ℒ))
 error_bcv(m, p, r, ℒ) = error(PointwiseLearn(m), p, BlockCrossValidation(r, loss=ℒ))
-error_drv(m, p, k, σ=2.0, ℒ) = error(PointwiseLearn(m), p, DensityRatioValidation(k, loss=ℒ, estimator=LSIF(σ=σ,b=10)))
+error_drv(m, p, k, σ, ℒ) = error(PointwiseLearn(m), p, DensityRatioValidation(k, loss=ℒ, estimator=LSIF(σ=σ,b=10)))
 
 # true error (known labels)
 function error_empirical(m, p, ℒ)
