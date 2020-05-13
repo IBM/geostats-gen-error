@@ -131,13 +131,8 @@ progress = Progress(length(iterator), "New Zealand classification:")
 # perform experiments
 rresults = progress_pmap(iterator, progress=progress,
                         on_error=skip) do (m, σ, v)
-<<<<<<< HEAD
   t = RegressionTask(numeric[numeric .!= v], v)
   p = LearningProblem(new_Ωs, new_Ωt, t)
-=======
-  t = RegressionTask(logs[logs.!=v], v)
-  p = LearningProblem(Ωs, Ωt, t)
->>>>>>> 86ec91778a6600daad47ec1cae342a9fbc1d4be2
   ℒ = Dict(v => L2DistLoss())
   experiment(m, p, σ, rᵦ, k, ℒ)
 end
