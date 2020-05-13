@@ -14,7 +14,7 @@ Random.seed!(123)
 # estimators of generalization error
 error_cv( m, p, k, ℒ) = error(PointwiseLearn(m), p, CrossValidation(k, loss=ℒ))
 error_bcv(m, p, r, ℒ) = error(PointwiseLearn(m), p, BlockCrossValidation(r, loss=ℒ))
-error_drv(m, p, k, ℒ) = error(PointwiseLearn(m), p, DensityRatioValidation(k, loss=ℒ, estimator=LSIF(σ=2.0,b=10)))
+error_drv(m, p, k, σ=2.0, ℒ) = error(PointwiseLearn(m), p, DensityRatioValidation(k, loss=ℒ, estimator=LSIF(σ=σ,b=10)))
 
 # true error (known labels)
 function error_empirical(m, p, ℒ)
@@ -70,6 +70,11 @@ ordered = sortperm(onoff[:values], rev=true)
 
 # Ωs = sample(Ωs, 100)
 # Ωt = sample(Ωt, 100)
+data_Ωs = OrderedDict{Symbol,AbstractArray}(v => Ωs[v] for (v,V) in variables(Ωs))
+data_Ωt = OrderedDict{Symbol,AbstractArray}(v => Ωt[v] for (v,V) in variables(Ωt))
+
+new_Ωs = PointSetData(data_Ωs, coordinates(Ωs))
+new_Ωt = PointSetData(data_Ωt, coordinates(Ωt))
 
 # distinguish types of variables
 numeric = [:GR, :SP, :DENS, :NEUT, :DTC]
@@ -81,7 +86,7 @@ k  = length(GeoStats.partition(Ωs, BlockPartitioner(rᵦ)))
 # CLASSIFICATION
 # ---------------
 t = ClassificationTask((:GR,:SP,:DENS,:DTC,:NEUT), :FORMATION)
-p = LearningProblem(Ωs, Ωt, t)
+p = LearningProblem(new_Ωs, new_Ωt, t)
 
 @load DecisionTreeClassifier
 @load KNNClassifier
@@ -126,7 +131,7 @@ progress = Progress(length(iterator), "New Zealand classification:")
 rresults = progress_pmap(iterator, progress=progress,
                         on_error=skip) do (m, σ, v)
   t = RegressionTask(numeric[numeric .!= v], v)
-  p = LearningProblem(Ωs, Ωt, t)
+  p = LearningProblem(new_Ωs, new_Ωt, t)
   ℒ = Dict(v => L2DistLoss())
   experiment(m, p, σ, rᵦ, k, ℒ)
 end
