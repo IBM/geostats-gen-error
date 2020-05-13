@@ -63,6 +63,7 @@ G3 = ind[5:end]
 
 # only consider formations in G1
 Ω = DataCollection(formations[G1])
+
 # split onshore (True) vs. offshore (False)
 onoff = groupby(Ω, :ONSHORE)
 ordered = sortperm(onoff[:values], rev=true)
@@ -76,8 +77,8 @@ data_Ωt = OrderedDict{Symbol,AbstractArray}(v => Ωt[v] for (v,V) in variables(
 new_Ωs = PointSetData(data_Ωs, coordinates(Ωs))
 new_Ωt = PointSetData(data_Ωt, coordinates(Ωt))
 
-# distinguish types of variables
-numeric = [:GR, :SP, :DENS, :NEUT, :DTC]
+# logs used in the experiment
+logs = [:GR,:SP,:DENS,:NEUT,:DTC]
 
 rᵦ = 500 # TODO: variography
 k  = length(GeoStats.partition(Ωs, BlockPartitioner(rᵦ)))
@@ -130,15 +131,20 @@ progress = Progress(length(iterator), "New Zealand classification:")
 # perform experiments
 rresults = progress_pmap(iterator, progress=progress,
                         on_error=skip) do (m, σ, v)
+<<<<<<< HEAD
   t = RegressionTask(numeric[numeric .!= v], v)
   p = LearningProblem(new_Ωs, new_Ωt, t)
+=======
+  t = RegressionTask(logs[logs.!=v], v)
+  p = LearningProblem(Ωs, Ωt, t)
+>>>>>>> 86ec91778a6600daad47ec1cae342a9fbc1d4be2
   ℒ = Dict(v => L2DistLoss())
   experiment(m, p, σ, rᵦ, k, ℒ)
 end
 
 # merge all results into dataframe
-all_res = vcat(cresults, rresults)
-res = DataFrame(skipmissing(Iterators.flatten(all_res)))
+all = vcat(cresults, rresults)
+res = DataFrame(skipmissing(Iterators.flatten(all)))
 
 # save all results to disk
 fname = joinpath(@__DIR__,"results","newzealand.csv")
