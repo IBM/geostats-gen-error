@@ -7,6 +7,7 @@ using LossFunctions
 using ProgressMeter
 using DataFrames
 using MLJ, CSV
+using Statistics
 using Random
 
 # reproducible results
@@ -45,12 +46,21 @@ end
 # MAIN SCRIPT
 # -------------
 
+# logs used in the experiment
+logs = [:GR,:SP,:DENS,:NEUT,:DTC]
+
 # read/clean raw data
 df = CSV.read("data/new_zealand/logs_no_duplicates.csv")
-df = df[:,[:X,:Y,:Z,:GR,:SP,:DENS,:NEUT,:DTC,:FORMATION,:ONSHORE]]
+df = df[:,[:X,:Y,:Z,logs...,:FORMATION,:ONSHORE]]
 dropmissing!(df)
 categorical!(df, :FORMATION)
 categorical!(df, :ONSHORE)
+for log in logs
+  x = df[!,log]
+  m = mean(x)
+  s = std(x, mean=m)
+  df[!,log] .= (x .- m) ./ s
+end
 
 # define spatial data
 wells = GeoDataFrame(df, [:X,:Y,:Z])
@@ -77,9 +87,6 @@ data_Ωt = OrderedDict{Symbol,AbstractArray}(v => Ωt[v] for (v,V) in variables(
 
 new_Ωs = PointSetData(data_Ωs, coordinates(Ωs))
 new_Ωt = PointSetData(data_Ωt, coordinates(Ωt))
-
-# logs used in the experiment
-logs = [:GR,:SP,:DENS,:NEUT,:DTC]
 
 rᵦ = 500 # TODO: variography
 k  = length(GeoStats.partition(Ωs, BlockPartitioner(rᵦ)))
