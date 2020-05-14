@@ -6,6 +6,7 @@ using LossFunctions
 using ProgressMeter
 using DataFrames
 using MLJ, CSV
+using Statistics
 using Random
 
 # reproducible results
@@ -32,8 +33,9 @@ function experiment(m, p, σ, rᵦ, k, ℒ)
     bcv = error_bcv(m, p, rᵦ, ℒ)
     drv = error_drv(m, p, k, ℒ, σ)
 
-    # true error
+    # actual error (unhide labels)
     actual = error_empirical(m, p, ℒ)
+
     map(outputvars(task(p))) do var
       (rᵦ=rᵦ, k=k, CV=cv[var], BCV=bcv[var], DRV=drv[var], DRV_SIGMA=σ,
        ACTUAL=actual[var], MODEL=info(m).name, TARGET=var)
@@ -44,14 +46,22 @@ end
 # MAIN SCRIPT
 # -------------
 
+# logs used in the experiment
+logs = [:GR,:SP,:DENS,:NEUT,:DTC]
+
 # read/clean raw data
 println("Read/clean raw data")
 df = CSV.read("data/new_zealand/logs_no_duplicates.csv")
-df = df[:,[:X,:Y,:Z,:GR,:SP,:DENS,:NEUT,:DTC,:FORMATION,:ONSHORE]]
-numeric=[:GR,:SP,:DENS,:NEUT,:DTC]
+df = df[:,[:X,:Y,:Z,logs...,:FORMATION,:ONSHORE]]
 dropmissing!(df)
 categorical!(df, :FORMATION)
 categorical!(df, :ONSHORE)
+for log in logs
+  x = df[!,log]
+  μ = mean(x)
+  σ = std(x, mean=μ)
+  df[!,log] .= (x .- μ) ./ σ
+end
 
 # define spatial data
 wells = GeoDataFrame(df, [:X,:Y,:Z])
@@ -71,26 +81,26 @@ onoff = groupby(Ω, :ONSHORE)
 ordered = sortperm(onoff[:values], rev=true)
 Ωs, Ωt = onoff[ordered]
 
-Ωs = sample(Ωs, 10000)
-Ωt = sample(Ωt,  2000)
-data_Ωs = OrderedDict{Symbol,AbstractArray}(v => Ωs[v] for (v,V) in variables(Ωs))
-data_Ωt = OrderedDict{Symbol,AbstractArray}(v => Ωt[v] for (v,V) in variables(Ωt))
+# sample the data
+# Ωs = sample(Ωs, 100)
+# Ωt = sample(Ωt, 100)
 
-new_Ωs = PointSetData(data_Ωs, coordinates(Ωs))
-new_Ωt = PointSetData(data_Ωt, coordinates(Ωt))
+# materialize the views (to avoid too many indirections)
+Ds = OrderedDict{Symbol,AbstractArray}(v => Ωs[v] for (v,V) in variables(Ωs))
+Dt = OrderedDict{Symbol,AbstractArray}(v => Ωt[v] for (v,V) in variables(Ωt))
+Ωs = PointSetData(Ds, coordinates(Ωs))
+Ωt = PointSetData(Dt, coordinates(Ωt))
 
-# logs used in the experiment
-logs = [:GR,:SP,:DENS,:NEUT,:DTC]
-
-rᵦ = 500 # TODO: variography
+# set block side and equivalent number of folds
+rᵦ = 500.
 k  = length(GeoStats.partition(Ωs, BlockPartitioner(rᵦ)))
 
 # ---------------
 # CLASSIFICATION
 # ---------------
 println("Classification")
-t = ClassificationTask((:GR,:SP,:DENS,:DTC,:NEUT), :FORMATION)
-p = LearningProblem(new_Ωs, new_Ωt, t)
+t = ClassificationTask(logs, :FORMATION)
+p = LearningProblem(Ωs, Ωt, t)
 
 @load DecisionTreeClassifier
 @load KNNClassifier
@@ -109,7 +119,7 @@ progress = Progress(length(iterator), "New Zealand classification:")
 skip = e -> (println("Skipped: $e"); missing)
 
 # perform experiments
-@time cresults = progress_pmap(iterator, progress=progress,
+cresults = progress_pmap(iterator, progress=progress,
                         on_error=skip) do (m, σ)
   experiment(m, p, σ, rᵦ, k, ℒ)
 end
@@ -133,10 +143,10 @@ iterator = Iterators.product(mrange, σrange, vrange)
 progress = Progress(length(iterator), "New Zealand regression:")
 
 # perform experiments
-@time rresults = progress_pmap(iterator, progress=progress,
+rresults = progress_pmap(iterator, progress=progress,
                         on_error=skip) do (m, σ, v)
-  t = RegressionTask(numeric[numeric .!= v], v)
-  p = LearningProblem(new_Ωs, new_Ωt, t)
+  t = RegressionTask(logs[logs .!= v], v)
+  p = LearningProblem(Ωs, Ωt, t)
   ℒ = Dict(v => L2DistLoss())
   experiment(m, p, σ, rᵦ, k, ℒ)
 end
