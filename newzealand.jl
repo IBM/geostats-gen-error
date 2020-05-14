@@ -15,7 +15,7 @@ Random.seed!(123)
 # estimators of generalization error
 error_cv( m, p, k, ℒ) = error(PointwiseLearn(m), p, CrossValidation(k, loss=ℒ))
 error_bcv(m, p, r, ℒ) = error(PointwiseLearn(m), p, BlockCrossValidation(r, loss=ℒ))
-error_drv(m, p, k, ℒ, σ=2.0) = error(PointwiseLearn(m), p, DensityRatioValidation(k, loss=ℒ, estimator=LSIF(σ=σ,b=10)))
+error_drv(m, p, k, σ, ℒ) = error(PointwiseLearn(m), p, DensityRatioValidation(k, loss=ℒ, estimator=LSIF(σ=σ,b=10)))
 
 # true error (known labels)
 function error_empirical(m, p, ℒ)
@@ -31,7 +31,7 @@ function experiment(m, p, σ, rᵦ, k, ℒ)
     # try different error estimates
     cv  = error_cv(m, p, k, ℒ)
     bcv = error_bcv(m, p, rᵦ, ℒ)
-    drv = error_drv(m, p, k, ℒ, σ)
+    drv = error_drv(m, p, k, σ, ℒ)
 
     # actual error (unhide labels)
     actual = error_empirical(m, p, ℒ)
