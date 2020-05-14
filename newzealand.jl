@@ -82,8 +82,8 @@ ordered = sortperm(onoff[:values], rev=true)
 Ωs, Ωt = onoff[ordered]
 
 # sample the data
-# Ωs = sample(Ωs, 100)
-# Ωt = sample(Ωt, 100)
+# Ωs = sample(Ωs, 10000)
+# Ωt = sample(Ωt,  2000)
 
 # materialize the views (to avoid too many indirections)
 Ds = OrderedDict{Symbol,AbstractArray}(v => Ωs[v] for (v,V) in variables(Ωs))
