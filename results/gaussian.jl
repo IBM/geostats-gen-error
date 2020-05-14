@@ -81,6 +81,9 @@ df[!,:rfactor] = map(df[!,:r]) do r
   @sprintf "r=%.1f" r
 end
 
+# filter "inside" configuration
+ff = filter(row -> row[:config] == "inside", df)
+
 # set plotting theme
 theme = Gadfly.get_theme(Val(:default))
 Gadfly.push_theme(theme)
@@ -125,11 +128,11 @@ Gadfly.with_theme(theme) do
                          layer(yintercept=[0.0], Geom.hline(color="gray", style=:dash)),
                          layer(yintercept=[0.5], Geom.hline(color="gray", style=:dash)),
                          Coord.cartesian(xmin=0.0,xmax=1.0,ymax=0.5)))
-  p2 = plot(df, x=:rfactor, y=Col.value(ycols...),
+  p2 = plot(ff, x=:rfactor, y=Col.value(ycols...),
             xgroup=Col.index(ycols...), color=:rfactor,
             Guide.xlabel("Correlation length by methods"),
             Guide.ylabel("Error"),
-            Guide.title("Error vs. correlation length"),
+            Guide.title("Error vs. correlation length for inside configuration"),
             Guide.colorkey(title="Correlation length"),
             Scale.color_discrete_manual(colors...),
             Geom.subplot_grid(Geom.boxplot))
@@ -157,7 +160,6 @@ Gadfly.with_theme(theme2) do
                          layer(yintercept=[0.5], Geom.hline(color="gray", style=:dash)),
                          Coord.cartesian(xmin=0.0,xmax=1.0,ymax=0.5)))
   xcols = (:CV,:BCV,:DRV)
-  ff = filter(row -> row[:config] == "inside", df)
   p2 = plot(ff, x=Col.value(xcols...), y=:ACTUAL, xgroup=Col.index(xcols...),
             Guide.xlabel("Estimated Error"), Guide.ylabel("Actual Error"),
             Guide.title("Q-Q plot for inside configuration"),
