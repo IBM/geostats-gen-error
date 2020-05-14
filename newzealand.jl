@@ -34,8 +34,9 @@ function experiment(m, p, σ, rᵦ, k, ℒ)
     bcv = error_bcv(m, p, rᵦ, ℒ)
     drv = error_drv(m, p, k, ℒ)
 
-    # true error
+    # actual error (unhide labels)
     actual = error_empirical(m, p, ℒ)
+
     map(outputvars(task(p))) do var
       (rᵦ=rᵦ, k=k, CV=cv[var], BCV=bcv[var], DRV=drv[var],
        ACTUAL=actual[var], MODEL=info(m).name, TARGET=var)
@@ -47,7 +48,7 @@ end
 # -------------
 
 # logs used in the experiment
-logs = [:GR,:SP,:DENS,:NEUT,:DTC]
+logs = (:GR,:SP,:DENS,:NEUT,:DTC)
 
 # read/clean raw data
 df = CSV.read("data/new_zealand/logs_no_duplicates.csv")
@@ -57,9 +58,9 @@ categorical!(df, :FORMATION)
 categorical!(df, :ONSHORE)
 for log in logs
   x = df[!,log]
-  m = mean(x)
-  s = std(x, mean=m)
-  df[!,log] .= (x .- m) ./ s
+  μ = mean(x)
+  σ = std(x, mean=μ)
+  df[!,log] .= (x .- μ) ./ σ
 end
 
 # define spatial data
@@ -80,21 +81,20 @@ onoff = groupby(Ω, :ONSHORE)
 ordered = sortperm(onoff[:values], rev=true)
 Ωs, Ωt = onoff[ordered]
 
-# Ωs = sample(Ωs, 100)
-# Ωt = sample(Ωt, 100)
-data_Ωs = OrderedDict{Symbol,AbstractArray}(v => Ωs[v] for (v,V) in variables(Ωs))
-data_Ωt = OrderedDict{Symbol,AbstractArray}(v => Ωt[v] for (v,V) in variables(Ωt))
+# materialize the views (to avoid too many indirections)
+Ds = OrderedDict{Symbol,AbstractArray}(v => Ωs[v] for (v,V) in variables(Ωs))
+Dt = OrderedDict{Symbol,AbstractArray}(v => Ωt[v] for (v,V) in variables(Ωt))
+Ωs = PointSetData(Ds, coordinates(Ωs))
+Ωt = PointSetData(Dt, coordinates(Ωt))
 
-new_Ωs = PointSetData(data_Ωs, coordinates(Ωs))
-new_Ωt = PointSetData(data_Ωt, coordinates(Ωt))
-
-rᵦ = 500 # TODO: variography
+# set block side and equivalent number of folds
+rᵦ = 500.
 k  = length(GeoStats.partition(Ωs, BlockPartitioner(rᵦ)))
 
 # ---------------
 # CLASSIFICATION
 # ---------------
-t = ClassificationTask((:GR,:SP,:DENS,:DTC,:NEUT), :FORMATION)
+t = ClassificationTask(logs, :FORMATION)
 p = LearningProblem(new_Ωs, new_Ωt, t)
 
 @load DecisionTreeClassifier
