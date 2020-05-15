@@ -116,7 +116,7 @@ end
 # parameter ranges
 mrange = [DecisionTreeClassifier(),KNNClassifier()]
 δrange = 0.0:0.1:0.7
-τrange = 0.5:0.1:1.0
+τrange = 0.3:0.1:0.9
 rrange = [1e-4,1e+1,2e+1]
 
 # experiment iterator and progress
