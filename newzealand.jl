@@ -114,7 +114,7 @@ skip = e -> (println("Skipped: $e"); missing)
 # perform experiments
 cresults = progress_pmap(iterator, progress=progress,
                         on_error=skip) do (m, σ)
-  experiment(m, p, σ, rᵦ, k, ℒ)
+  experiment(m, p, σ, r, k, ℒ)
 end
 
 # -----------
@@ -140,7 +140,7 @@ rresults = progress_pmap(iterator, progress=progress,
   t = RegressionTask(logs[logs .!= v], v)
   p = LearningProblem(Ωs, Ωt, t)
   ℒ = Dict(v => L2DistLoss())
-  experiment(m, p, σ, rᵦ, k, ℒ)
+  experiment(m, p, σ, r, k, ℒ)
 end
 
 # merge all results into dataframe
