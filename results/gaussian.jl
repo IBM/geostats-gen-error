@@ -64,7 +64,7 @@ shiftconfig(δ, τ) = 2δ ≤ 1 - τ ?
 df = CSV.read(joinpath(@__DIR__,"gaussian.csv"), missingstring="NaN")
 
 # drop outliers due to numerical instability
-df = filter(row -> row[:DRV] ≤ 0.5, df)
+df = filter(row -> row[:DRV] ≤ 0.5 && row[:ACTUAL] ≤ 0.5, df)
 df = dropmissing(df)
 
 
@@ -155,7 +155,7 @@ Gadfly.with_theme(theme2) do
        Guide.title("Error vs. covariate shift"),
        Guide.colorkey(title="Method"),
        Scale.color_discrete_manual(colors...),
-       Geom.subplot_grid(layer(Geom.point), layer(Geom.line, Stat.smooth),
+       Geom.subplot_grid(layer(Geom.point), layer(Geom.line, Stat.smooth(smoothing=1.0)),
                          layer(yintercept=[0.0], Geom.hline(color="gray", style=:dash)),
                          layer(yintercept=[0.5], Geom.hline(color="gray", style=:dash)),
                          Coord.cartesian(xmin=0.0,xmax=1.0,ymax=0.5)))
