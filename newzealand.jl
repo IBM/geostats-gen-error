@@ -27,17 +27,17 @@ function error_empirical(m, p, ℒ)
   Dict(results)
 end
 
-function experiment(m, p, σ, rᵦ, k, ℒ)
+function experiment(m, p, σ, r, k, ℒ)
     # try different error estimates
     cv  = error_cv(m, p, k, ℒ)
-    bcv = error_bcv(m, p, rᵦ, ℒ)
+    bcv = error_bcv(m, p, r, ℒ)
     drv = error_drv(m, p, k, σ, ℒ)
 
     # actual error (unhide labels)
     actual = error_empirical(m, p, ℒ)
 
     map(outputvars(task(p))) do var
-      (rᵦ=rᵦ, k=k, CV=cv[var], BCV=bcv[var], DRV=drv[var], DRV_SIGMA=σ,
+      (σ=σ, CV=cv[var], BCV=bcv[var], DRV=drv[var],
        ACTUAL=actual[var], MODEL=info(m).name, TARGET=var)
     end
 end
@@ -50,8 +50,7 @@ end
 logs = [:GR,:SP,:DENS,:NEUT,:DTC]
 
 # read/clean raw data
-println("Read/clean raw data")
-df = CSV.read("data/new_zealand/logs_no_duplicates.csv")
+df = CSV.read("data/newzealand.csv")
 df = df[:,[:X,:Y,:Z,logs...,:FORMATION,:ONSHORE]]
 dropmissing!(df)
 categorical!(df, :FORMATION)
@@ -66,15 +65,10 @@ end
 # define spatial data
 wells = GeoDataFrame(df, [:X,:Y,:Z])
 
-# group formations in terms of number of points
+# select the two most frequent formations
 formations = groupby(wells, :FORMATION)
-ind = sortperm(npoints.(formations), rev=true)
-G1 = ind[1:2]
-G2 = ind[3:4]
-G3 = ind[5:end]
-
-# only consider formations in G1
-Ω = DataCollection(formations[G1])
+frequency = sortperm(npoints.(formations), rev=true)
+Ω = DataCollection(formations[frequency[1:2]])
 
 # split onshore (True) vs. offshore (False)
 onoff = groupby(Ω, :ONSHORE)
@@ -85,20 +79,19 @@ ordered = sortperm(onoff[:values], rev=true)
 # Ωs = sample(Ωs, 10000)
 # Ωt = sample(Ωt,  2000)
 
-# materialize the views (to avoid too many indirections)
+# materialize the views (to avoid indirections to memory)
 Ds = OrderedDict{Symbol,AbstractArray}(v => Ωs[v] for (v,V) in variables(Ωs))
 Dt = OrderedDict{Symbol,AbstractArray}(v => Ωt[v] for (v,V) in variables(Ωt))
 Ωs = PointSetData(Ds, coordinates(Ωs))
 Ωt = PointSetData(Dt, coordinates(Ωt))
 
 # set block side and equivalent number of folds
-rᵦ = 500.
-k  = length(GeoStats.partition(Ωs, BlockPartitioner(rᵦ)))
+r = 500.
+k = length(GeoStats.partition(Ωs, BlockPartitioner(rᵦ)))
 
 # ---------------
 # CLASSIFICATION
 # ---------------
-println("Classification")
 t = ClassificationTask(logs, :FORMATION)
 p = LearningProblem(Ωs, Ωt, t)
 
@@ -127,7 +120,6 @@ end
 # -----------
 # REGRESSION
 # -----------
-println("Regression")
 @load LinearRegressor pkg="MLJLinearModels"
 @load DecisionTreeRegressor pkg="DecisionTree"
 @load RandomForestRegressor pkg="DecisionTree"
@@ -155,7 +147,6 @@ end
 all = vcat(cresults, rresults)
 res = DataFrame(skipmissing(Iterators.flatten(all)))
 
-println("Saving results")
 # save all results to disk
 fname = joinpath(@__DIR__,"results","newzealand.csv")
 CSV.write(fname, res)
