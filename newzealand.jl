@@ -51,7 +51,7 @@ logs = [:GR,:SP,:DENS,:NEUT,:DTC]
 
 # read/clean raw data
 df = CSV.read("data/newzealand.csv")
-df = df[:,[:X,:Y,:Z,logs...,:FORMATION,:ONSHORE]]
+df = df[:,[logs...,:X,:Y,:Z,:FORMATION,:ONSHORE]]
 dropmissing!(df)
 categorical!(df, :FORMATION)
 categorical!(df, :ONSHORE)
@@ -75,8 +75,8 @@ frequency = sortperm(npoints.(formations), rev=true)
 
 # split onshore (True) vs. offshore (False)
 onoff = groupby(Ω, :ONSHORE)
-ordered = sortperm(onoff[:values], rev=true)
-Ωs, Ωt = onoff[ordered]
+order = sortperm(onoff[:values], rev=true)
+Ωs, Ωt = onoff[order]
 
 # sample the data
 # Ωs = sample(Ωs, 10000)
