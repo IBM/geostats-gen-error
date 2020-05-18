@@ -68,7 +68,10 @@ wells = GeoDataFrame(df, [:X,:Y,:Z])
 # select the two most frequent formations
 formations = groupby(wells, :FORMATION)
 frequency = sortperm(npoints.(formations), rev=true)
-Ω = DataCollection(formations[frequency[1:2]])
+𝒞 = DataCollection(formations[frequency[1:2]])
+
+# eliminate duplicate coordinates
+Ω = uniquecoords(𝒞)
 
 # split onshore (True) vs. offshore (False)
 onoff = groupby(Ω, :ONSHORE)
