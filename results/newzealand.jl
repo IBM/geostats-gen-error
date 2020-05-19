@@ -12,6 +12,7 @@ using CSV
 # load results table
 df = CSV.read(joinpath(@__DIR__,"newzealand.csv"))
 
+# highlight table entries
 best = Highlighter(
   (d, i, j) -> j ≤ 3 && argmin([abs(d[i,k] - d[i,4]) for k in 1:3]) == j,
   bold=true, foreground=:blue
@@ -25,10 +26,18 @@ actual = Highlighter(
   foreground=:dark_gray
 )
 
-# highlight best entries
 for g in groupby(df, :TARGET)
-  pretty_table(g, nosubheader=true, formatters=ft_round(3,1:4),
+  pretty_table(g, nosubheader=true,
+               formatters=ft_round(3,1:4),
                highlighters=(best, worst, actual))
+
+  # model ranking based on each method
+  ranks = map([:CV,:BCV,:DRV,:ACTUAL]) do m
+    r = sortperm(g[!,m])
+    Symbol(m," RANK") => g[!,:MODEL][r]
+  end
+  r = DataFrame(ranks)
+  pretty_table(r, nosubheader=true)
 end
 
 # pretty_table(df, backend=:latex, tf=latex_simple,
