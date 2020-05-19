@@ -89,6 +89,26 @@ onoff = groupby(Ω, :ONSHORE)
 order = sortperm(onoff[:values], rev=true)
 Ωs, Ωt = onoff[order]
 
+# we are left with two formations onshore and offshore
+# make sure that these two are balanced for classification
+fs, ft = Ωs[:FORMATION], Ωt[:FORMATION]
+
+# formation counts
+ms = count(isequal("Urenui"), fs)
+ns = count(isequal("Manganui"), fs)
+mt = count(isequal("Urenui"), ft)
+nt = count(isequal("Manganui"), ft)
+
+# formation proportions
+ps = ms / (ms + ns)
+pt = mt / (mt + nt)
+
+# weighted sampling
+ws = [f == "Urenui" ? 0.5/ps : 0.5/(1-ps) for f in fs]
+wt = [f == "Urenui" ? 0.5/pt : 0.5/(1-pt) for f in ft]
+Ωs = sample(Ωs, 300000, ws, replace=false)
+Ωt = sample(Ωt, 50000, wt, replace=false)
+
 # set block sides and equivalent number of folds
 r = (10000.,10000.,500.)
 k = length(GeoStats.partition(Ωs, BlockPartitioner(r)))
