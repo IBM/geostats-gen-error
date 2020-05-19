@@ -15,7 +15,7 @@ register(DataDep("NewZealand",
          "Taranaki Basin Curated Well Logs",
          "https://dax-cdn.cdn.appdomain.cloud/dax-taranaki-basin-curated-well-logs/1.0.0/taranaki-basin-curated-well-logs.tar.gz",
          "608f7aad5a4e9fded6441fd44f242382544d3f61790446175f5ede83f15f4d11",
-         post_fetch_method=unpack))
+         post_fetch_method=DataDeps.unpack))
 
 # name of the CSV file in the dataset
 csv = joinpath(datadep"NewZealand","taranaki-basin-curated-well-logs","logs.csv")
