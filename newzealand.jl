@@ -5,9 +5,20 @@ using DensityRatioEstimation
 using LossFunctions
 using ProgressMeter
 using DataFrames
+using DataDeps
 using MLJ, CSV
 using Statistics
 using Random
+
+# download dataset if needed
+register(DataDep("NewZealand",
+         "Taranaki Basin Curated Well Logs",
+         "https://dax-cdn.cdn.appdomain.cloud/dax-taranaki-basin-curated-well-logs/1.0.0/taranaki-basin-curated-well-logs.tar.gz",
+         "608f7aad5a4e9fded6441fd44f242382544d3f61790446175f5ede83f15f4d11",
+         post_fetch_method=unpack))
+
+# name of the CSV file in the dataset
+csv = joinpath(datadep"NewZealand","taranaki-basin-curated-well-logs","logs.csv")
 
 # reproducible results
 Random.seed!(2020)
@@ -50,7 +61,7 @@ end
 logs = [:GR,:SP,:DENS,:NEUT,:DTC]
 
 # read/clean raw data
-df = CSV.read("data/newzealand.csv")
+df = CSV.read(csv)
 df = df[:,[logs...,:X,:Y,:Z,:FORMATION,:ONSHORE]]
 dropmissing!(df)
 categorical!(df, :FORMATION)
@@ -85,16 +96,10 @@ k = length(GeoStats.partition(Ωs, BlockPartitioner(r)))
 # ---------------
 # CLASSIFICATION
 # ---------------
-t = ClassificationTask(logs, :FORMATION)
-p = LearningProblem(Ωs, Ωt, t)
-
 @load LDA pkg="MultivariateStats"
-@load ConstantClassifier pkg="MLJModels"
 @load KNNClassifier pkg="NearestNeighbors"
 @load EvoTreeClassifier pkg="EvoTrees"
 @load GaussianNBClassifier pkg="NaiveBayes"
-
-ℒ = Dict(:FORMATION => MisclassLoss())
 
 # parameter ranges
 mrange = [LDA(), ConstantClassifier(), KNNClassifier(),
@@ -110,13 +115,15 @@ skip = e -> (println("Skipped: $e"); missing)
 # perform experiments
 cresults = progress_pmap(iterator, progress=progress,
                          on_error=skip) do (m,)
+  t = ClassificationTask(logs, :FORMATION)
+  p = LearningProblem(Ωs, Ωt, t)
+  ℒ = Dict(:FORMATION => MisclassLoss())
   experiment(m, p, r, k, ℒ)
 end
 
 # -----------
 # REGRESSION
 # -----------
-@load ConstantRegressor pkg="MLJModels"
 @load KNNRegressor pkg="NearestNeighbors"
 @load DecisionTreeRegressor pkg="DecisionTree"
 
@@ -138,9 +145,9 @@ rresults = progress_pmap(iterator, progress=progress,
 end
 
 # merge all results into dataframe
-all = vcat(cresults, rresults)
-res = DataFrame(Iterators.flatten(skipmissing(all)))
+allres = vcat(cresults[:], rresults[:])
+resdf = DataFrame(Iterators.flatten(skipmissing(allres)))
 
 # save all results to disk
 fname = joinpath(@__DIR__,"results","newzealand.csv")
-CSV.write(fname, res)
+CSV.write(fname, resdf)
