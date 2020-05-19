@@ -127,7 +127,7 @@ mrange = [LinearRegressor(),DecisionTreeRegressor(),
 vrange = [:GR]
 
 # experiment iterator and progress
-iterator = Iterators.product(mrange, σrange, vrange)
+iterator = Iterators.product(mrange, vrange)
 progress = Progress(length(iterator), "New Zealand regression:")
 
 # perform experiments
@@ -141,7 +141,7 @@ end
 
 # merge all results into dataframe
 all = vcat(cresults, rresults)
-res = DataFrame(skipmissing(Iterators.flatten(all)))
+res = DataFrame(Iterators.flatten(skipmissing(all)))
 
 # save all results to disk
 fname = joinpath(@__DIR__,"results","newzealand.csv")
