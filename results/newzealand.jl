@@ -32,9 +32,9 @@ for g in groupby(df, :TARGET)
                highlighters=(best, worst, actual))
 
   # model ranking based on each method
-  ranks = map([:CV,:BCV,:DRV,:ACTUAL]) do m
-    r = sortperm(g[!,m])
-    Symbol(m," RANK") => g[!,:MODEL][r]
+  ranks = map([:CV,:BCV,:DRV,:ACTUAL]) do err
+    r = sortperm(g[!,err])
+    Symbol(err," RANK") => g[!,:MODEL][r]
   end
   r = DataFrame(ranks)
   pretty_table(r, nosubheader=true)
