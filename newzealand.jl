@@ -10,7 +10,7 @@ using Statistics
 using Random
 
 # reproducible results
-Random.seed!(123)
+Random.seed!(2020)
 
 # estimators of generalization error
 error_cv( m, p, k, ℒ) = error(PointwiseLearn(m), p, CrossValidation(k, loss=ℒ))
@@ -116,15 +116,13 @@ end
 # -----------
 # REGRESSION
 # -----------
-@load LinearRegressor pkg="MLJLinearModels"
-@load DecisionTreeRegressor pkg="DecisionTree"
-@load RandomForestRegressor pkg="DecisionTree"
+@load ConstantRegressor pkg="MLJModels"
 @load KNNRegressor pkg="NearestNeighbors"
+@load DecisionTreeRegressor pkg="DecisionTree"
 
 # parameter ranges
-mrange = [LinearRegressor(),DecisionTreeRegressor(),
-          RandomForestRegressor(),KNNRegressor()]
-vrange = [:GR]
+mrange = [ConstantRegressor(), KNNRegressor(), DecisionTreeRegressor()]
+vrange = logs
 
 # experiment iterator and progress
 iterator = Iterators.product(mrange, vrange)
