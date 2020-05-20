@@ -10,16 +10,6 @@ using MLJ, CSV
 using Statistics
 using Random
 
-# download dataset if needed
-register(DataDep("NewZealand",
-         "Taranaki Basin Curated Well Logs",
-         "https://dax-cdn.cdn.appdomain.cloud/dax-taranaki-basin-curated-well-logs/1.0.0/taranaki-basin-curated-well-logs.tar.gz",
-         "608f7aad5a4e9fded6441fd44f242382544d3f61790446175f5ede83f15f4d11",
-         post_fetch_method=DataDeps.unpack))
-
-# name of the CSV file in the dataset
-csv = joinpath(datadep"NewZealand","taranaki-basin-curated-well-logs","logs.csv")
-
 # reproducible results
 Random.seed!(2020)
 
@@ -39,23 +29,62 @@ function error_empirical(m, p, ℒ)
 end
 
 function experiment(m, p, r, k, ℒ)
-    # try different error estimates
-    cv  = error_cv( m, p, k, ℒ)
-    bcv = error_bcv(m, p, r, ℒ)
-    drv = error_drv(m, p, k, ℒ)
+  # try different error estimates
+  cv  = error_cv( m, p, k, ℒ)
+  bcv = error_bcv(m, p, r, ℒ)
+  drv = error_drv(m, p, k, ℒ)
 
-    # actual error (unhide labels)
-    actual = error_empirical(m, p, ℒ)
+  # actual error (unhide labels)
+  actual = error_empirical(m, p, ℒ)
 
-    map(outputvars(task(p))) do var
-      (CV=cv[var], BCV=bcv[var], DRV=drv[var],
-       ACTUAL=actual[var], MODEL=info(m).name, TARGET=var)
-    end
+  map(outputvars(task(p))) do var
+    (CV=cv[var], BCV=bcv[var], DRV=drv[var],
+     ACTUAL=actual[var], MODEL=info(m).name, TARGET=var)
+  end
+end
+
+function tuning(m, p)
+  # retrieve problem info
+  Ωs = sourcedata(p)
+  t  = task(p)
+
+  # hyperparameter ranges
+  rs = if m isa KNeighborsClassifier
+    [range(m, :n_neighbors, values=[2,5,10])]
+  end
+
+  # loss function for tuning
+  l = t isa ClassificationTask ? MisclassLoss() : L2DistLoss()
+
+  # meta-model to be tuned
+  tm = TunedModel(model=m, ranges=rs, measure=l)
+
+  # tabular data view
+  feats  = collect(features(t))
+  target = label(t)
+  X = table(Ωs[1:npoints(Ωs),feats])
+  y = Ωs[target]
+
+  # perform tuning
+  mac = machine(tm, X, y)
+  fit!(mac)
+
+  fitted_params(m).best_model
 end
 
 # -------------
 # MAIN SCRIPT
 # -------------
+
+# download dataset if needed
+register(DataDep("NewZealand",
+         "Taranaki Basin Curated Well Logs",
+         "https://dax-cdn.cdn.appdomain.cloud/dax-taranaki-basin-curated-well-logs/1.0.0/taranaki-basin-curated-well-logs.tar.gz",
+         "608f7aad5a4e9fded6441fd44f242382544d3f61790446175f5ede83f15f4d11",
+         post_fetch_method=DataDeps.unpack))
+
+# name of the CSV file in the dataset
+csv = joinpath(datadep"NewZealand","taranaki-basin-curated-well-logs","logs.csv")
 
 # logs used in the experiment
 logs = [:GR,:SP,:DENS,:NEUT,:DTC]
@@ -107,23 +136,33 @@ pt = mt / (mt + nt)
 ws = [f == "Urenui" ? 0.5/ps : 0.5/(1-ps) for f in fs]
 wt = [f == "Urenui" ? 0.5/pt : 0.5/(1-pt) for f in ft]
 Ωs = sample(Ωs, 300000, ws, replace=false)
-Ωt = sample(Ωt, 50000, wt, replace=false)
+Ωt = sample(Ωt,  50000, wt, replace=false)
 
-# set block sides and equivalent number of folds
+# drop levels to avoid known downstream issues in MLJ
+fs, ft = Ωs[:FORMATION], Ωt[:FORMATION]
+levels!(fs, ["Urenui","Manganui"])
+levels!(ft, ["Urenui","Manganui"])
+𝒫s = georef(OrderedDict(:FORMATION => fs), domain(Ωs))
+𝒫t = georef(OrderedDict(:FORMATION => ft), domain(Ωt))
+Ωs = join(view(Ωs, logs), 𝒫s)
+Ωt = join(view(Ωt, logs), 𝒫t)
+
+# block sides and number of folds for error estimators
 r = (10000.,10000.,500.)
 k = length(GeoStats.partition(Ωs, BlockPartitioner(r)))
 
 # ---------------
 # CLASSIFICATION
 # ---------------
-@load LDA pkg="MultivariateStats"
-@load KNNClassifier pkg="NearestNeighbors"
-@load EvoTreeClassifier pkg="EvoTrees"
-@load GaussianNBClassifier pkg="NaiveBayes"
+@load LogisticClassifier pkg="ScikitLearn"
+@load KNeighborsClassifier pkg="ScikitLearn"
+@load RidgeClassifier pkg="ScikitLearn"
+@load GaussianNBClassifier pkg="ScikitLearn"
 
 # parameter ranges
-mrange = [LDA(), ConstantClassifier(), KNNClassifier(),
-          EvoTreeClassifier(), GaussianNBClassifier()]
+mrange = [ConstantClassifier(), LogisticClassifier(),
+          KNeighborsClassifier(), RidgeClassifier(),
+          GaussianNBClassifier()]
 
 # experiment iterator and progress
 iterator = Iterators.product(mrange)
