@@ -67,7 +67,6 @@ df = CSV.read(joinpath(@__DIR__,"gaussian.csv"), missingstring="NaN")
 df = filter(row -> row[:DRV] ≤ 0.5 && row[:ACTUAL] ≤ 0.5, df)
 df = dropmissing(df)
 
-
 # shift functions
 df[!,:KLDivergence]    = kldiv.(df[!,:δ], df[!,:τ])
 df[!,:JaccardDistance] = jaccard.(df[!,:δ], df[!,:τ])

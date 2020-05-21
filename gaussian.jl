@@ -107,14 +107,14 @@ end
 # -------------
 
 # learning models
-@load KNNClassifier
-@load DecisionTreeClassifier
+@load KNeighborsClassifier pkg="ScikitLearn"
+@load DecisionTreeClassifier pkg="DecisionTree"
 
 # misclassification loss
 ℒ = Dict(:LABEL => MisclassLoss())
 
 # parameter ranges
-mrange = [DecisionTreeClassifier(),KNNClassifier()]
+mrange = [KNeighborsClassifier(), DecisionTreeClassifier()]
 δrange = 0.0:0.1:0.7
 τrange = 0.3:0.1:0.9
 rrange = [1e-4,1e+1,2e+1]
