@@ -27,7 +27,7 @@ actual = Highlighter(
 )
 
 for g in groupby(df, :TARGET)
-  pretty_table(g, nosubheader=true,
+  pretty_table(g, nosubheader=true, crop=:none,
                formatters=ft_round(3,1:4),
                highlighters=(best, worst, actual))
 
@@ -37,7 +37,7 @@ for g in groupby(df, :TARGET)
     Symbol(err," RANK") => g[!,:MODEL][r]
   end
   r = DataFrame(ranks)
-  pretty_table(r, nosubheader=true)
+  pretty_table(r, nosubheader=true, crop=:none)
 end
 
 # pretty_table(df, backend=:latex, tf=latex_simple,
