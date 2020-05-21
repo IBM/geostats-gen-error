@@ -26,6 +26,9 @@ actual = Highlighter(
   foreground=:dark_gray
 )
 
+# heatmap colors
+colors = 123:-5:88
+
 for g in groupby(df, :VARIABLE)
   pretty_table(g, nosubheader=true, crop=:none,
                alignment=[:r,:r,:r,:r,:r,:c,:c],
@@ -38,8 +41,11 @@ for g in groupby(df, :VARIABLE)
     Symbol(err," RANK") => g[!,:MODEL][r]
   end
   r = DataFrame(ranks)
-  pretty_table(r, nosubheader=true,
-               crop=:none, alignment=:c)
+
+  hs = Tuple([Highlighter((d, i, j) -> d[i,j] == r[k,Symbol("ACTUAL RANK")],
+                          background=colors[k],foreground=:black) for k in 1:size(r,1)])
+  pretty_table(r, nosubheader=true, crop=:none,
+               highlighters=hs, alignment=:c)
 end
 
 # pretty_table(df, backend=:latex, tf=latex_simple,
