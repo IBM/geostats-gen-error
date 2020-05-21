@@ -43,35 +43,6 @@ function experiment(m, p, r, k, ℒ)
   end
 end
 
-function tuning(m, p)
-  # retrieve problem info
-  Ωs = sourcedata(p)
-  t  = task(p)
-
-  # hyperparameter ranges
-  rs = if m isa KNeighborsClassifier
-    [range(m, :n_neighbors, values=[2,5,10])]
-  end
-
-  # loss function for tuning
-  l = t isa ClassificationTask ? MisclassLoss() : L2DistLoss()
-
-  # meta-model to be tuned
-  tm = TunedModel(model=m, ranges=rs, measure=l)
-
-  # tabular data view
-  feats  = collect(features(t))
-  target = label(t)
-  X = table(Ωs[1:npoints(Ωs),feats])
-  y = Ωs[target]
-
-  # perform tuning
-  mac = machine(tm, X, y)
-  fit!(mac)
-
-  fitted_params(m).best_model
-end
-
 # -------------
 # MAIN SCRIPT
 # -------------
@@ -148,21 +119,23 @@ levels!(ft, ["Urenui","Manganui"])
 Ωt = join(view(Ωt, logs), 𝒫t)
 
 # block sides and number of folds for error estimators
-r = (10000.,10000.,500.)
+r = (10000., 10000., 500.)
 k = length(GeoStats.partition(Ωs, BlockPartitioner(r)))
 
 # ---------------
 # CLASSIFICATION
 # ---------------
+@load RidgeClassifier pkg="ScikitLearn"
 @load LogisticClassifier pkg="ScikitLearn"
 @load KNeighborsClassifier pkg="ScikitLearn"
-@load RidgeClassifier pkg="ScikitLearn"
 @load GaussianNBClassifier pkg="ScikitLearn"
+@load BayesianLDA pkg="ScikitLearn"
+@load PerceptronClassifier pkg="ScikitLearn"
 
 # parameter ranges
-mrange = [ConstantClassifier(), LogisticClassifier(),
-          KNeighborsClassifier(), RidgeClassifier(),
-          GaussianNBClassifier()]
+mrange = [RidgeClassifier(), LogisticClassifier(), KNeighborsClassifier(),
+          GaussianNBClassifier(), BayesianLDA(), PerceptronClassifier(),
+          ConstantClassifier()]
 
 # experiment iterator and progress
 iterator = Iterators.product(mrange)
