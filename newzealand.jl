@@ -125,17 +125,19 @@ k = length(GeoStats.partition(Ωs, BlockPartitioner(r)))
 # ---------------
 # CLASSIFICATION
 # ---------------
+@load DummyClassifier pkg="ScikitLearn"
 @load RidgeClassifier pkg="ScikitLearn"
 @load LogisticClassifier pkg="ScikitLearn"
 @load KNeighborsClassifier pkg="ScikitLearn"
 @load GaussianNBClassifier pkg="ScikitLearn"
 @load BayesianLDA pkg="ScikitLearn"
 @load PerceptronClassifier pkg="ScikitLearn"
+@load DecisionTreeClassifier pkg="DecisionTree"
 
-# parameter ranges
+# list of models
 mrange = [RidgeClassifier(), LogisticClassifier(), KNeighborsClassifier(),
           GaussianNBClassifier(), BayesianLDA(), PerceptronClassifier(),
-          ConstantClassifier()]
+          DecisionTreeClassifier(), DummyClassifier()]
 
 # experiment iterator and progress
 iterator = Iterators.product(mrange)
@@ -156,11 +158,17 @@ end
 # -----------
 # REGRESSION
 # -----------
-@load KNNRegressor pkg="NearestNeighbors"
+@load DummyRegressor pkg="ScikitLearn"
+@load RidgeRegressor pkg="ScikitLearn"
+@load LassoRegressor pkg="ScikitLearn"
+@load KNeighborsRegressor pkg="ScikitLearn"
 @load DecisionTreeRegressor pkg="DecisionTree"
 
-# parameter ranges
-mrange = [ConstantRegressor(), KNNRegressor(), DecisionTreeRegressor()]
+# list of models
+mrange = [RidgeRegressor(), LassoRegressor(), KNeighborsRegressor(),
+          DecisionTreeRegressor(), DummyRegressor()]
+
+# target variables
 vrange = logs
 
 # experiment iterator and progress
