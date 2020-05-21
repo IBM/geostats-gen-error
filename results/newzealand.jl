@@ -22,13 +22,14 @@ worst = Highlighter(
   bold=true, foreground=:red
 )
 actual = Highlighter(
-  (d, i, j) -> (j == 4),
+  (d, i, j) -> (j == 4 || j == 5),
   foreground=:dark_gray
 )
 
-for g in groupby(df, :TARGET)
+for g in groupby(df, :VARIABLE)
   pretty_table(g, nosubheader=true, crop=:none,
-               formatters=ft_round(3,1:4),
+               alignment=[:r,:r,:r,:r,:r,:c,:c],
+               formatters=ft_round(3,1:5),
                highlighters=(best, worst, actual))
 
   # model ranking based on each method
@@ -37,7 +38,8 @@ for g in groupby(df, :TARGET)
     Symbol(err," RANK") => g[!,:MODEL][r]
   end
   r = DataFrame(ranks)
-  pretty_table(r, nosubheader=true, crop=:none)
+  pretty_table(r, nosubheader=true,
+               crop=:none, alignment=:c)
 end
 
 # pretty_table(df, backend=:latex, tf=latex_simple,

@@ -18,14 +18,29 @@ error_cv( m, p, k, ℒ) = error(PointwiseLearn(m), p, CrossValidation(k, loss=�
 error_bcv(m, p, r, ℒ) = error(PointwiseLearn(m), p, BlockCrossValidation(r, loss=ℒ))
 error_drv(m, p, k, ℒ) = error(PointwiseLearn(m), p, DensityRatioValidation(k, loss=ℒ, estimator=LSIF(σ=2.0,b=10)))
 
-# true error (known labels)
+# actual error (known labels)
 function error_empirical(m, p, ℒ)
-  results = map(outputvars(task(p))) do var
-    y = targetdata(p)[var]
-    ŷ = solve(p, PointwiseLearn(m))[var]
-    var => LossFunctions.value(ℒ[var], y, ŷ, AggMode.Mean())
+  t  = task(p)
+  Ωs = sourcedata(p)
+  Ωt = targetdata(p)
+
+  # learn task on source and perform
+  # it on both source and target data
+  lm = learn(t, Ωs, m)
+  ŷs = perform(t, Ωs, lm)
+  ŷt = perform(t, Ωt, lm)
+
+  # error on source
+  ϵs = map(outputvars(t)) do var
+    var => LossFunctions.value(ℒ[var], Ωs[var], ŷs[var], AggMode.Mean())
   end
-  Dict(results)
+
+  # error on target
+  ϵt = map(outputvars(t)) do var
+    var => LossFunctions.value(ℒ[var], Ωt[var], ŷt[var], AggMode.Mean())
+  end
+
+  Dict(ϵs), Dict(ϵt)
 end
 
 function experiment(m, p, r, k, ℒ)
@@ -35,11 +50,15 @@ function experiment(m, p, r, k, ℒ)
   drv = error_drv(m, p, k, ℒ)
 
   # actual error (unhide labels)
-  actual = error_empirical(m, p, ℒ)
+  ϵs, ϵt = error_empirical(m, p, ℒ)
+
+  # model name without suffix
+  model = replace(info(m).name, r"(.*)(Regressor|Classifier)" => s"\g<1>")
 
   map(outputvars(task(p))) do var
     (CV=cv[var], BCV=bcv[var], DRV=drv[var],
-     ACTUAL=actual[var], MODEL=info(m).name, TARGET=var)
+     SOURCE=ϵs[var], TARGET=ϵt[var],
+     MODEL=model, VARIABLE=var)
   end
 end
 
@@ -141,7 +160,7 @@ mrange = [RidgeClassifier(), LogisticClassifier(), KNeighborsClassifier(),
 
 # experiment iterator and progress
 iterator = Iterators.product(mrange)
-progress = Progress(length(iterator), "New Zealand classification:")
+progress = Progress(length(iterator), "Formation prediction:")
 
 # return missing in case of failure
 skip = e -> (println("Skipped: $e"); missing)
@@ -168,12 +187,12 @@ end
 mrange = [RidgeRegressor(), LassoRegressor(), KNeighborsRegressor(),
           DecisionTreeRegressor(), DummyRegressor()]
 
-# target variables
+# variables to predict
 vrange = logs
 
 # experiment iterator and progress
 iterator = Iterators.product(mrange, vrange)
-progress = Progress(length(iterator), "New Zealand regression:")
+progress = Progress(length(iterator), "Well log prediction:")
 
 # perform experiments
 rresults = progress_pmap(iterator, progress=progress,
