@@ -3,7 +3,19 @@ using Pkg; Pkg.instantiate()
 
 using DataFrames
 using PrettyTables
+using ColorSchemes
 using CSV
+
+# valid colors for the integer range 1, 2, ..., kmax
+function color(k, kmax)
+  cs = reverse(colorschemes[:nuuk])
+  nc = length(cs)
+  i = ceil(Int, (k / kmax) * nc)
+  R = round(Int,cs[i].r*255)
+  G = round(Int,cs[i].g*255)
+  B = round(Int,cs[i].b*255)
+  R, G, B
+end
 
 # -------------
 # MAIN SCRIPT
@@ -12,38 +24,41 @@ using CSV
 # load results table
 df = CSV.read(joinpath(@__DIR__,"newzealand.csv"))
 
-# highlight table entries
-best = Highlighter(
-  (d, i, j) -> j ≤ 3 && argmin([abs(d[i,k] - d[i,4]) for k in 1:3]) == j,
-  bold=true, foreground=:blue
-)
-worst = Highlighter(
-  (d, i, j) -> j ≤ 3 && argmax([abs(d[i,k] - d[i,4]) for k in 1:3]) == j,
-  bold=true, foreground=:red
-)
-actual = Highlighter(
-  (d, i, j) -> (j == 4 || j == 5),
-  foreground=:dark_gray
-)
+# name columns
+serror = 3
+terror = 4
+errors = 5:7
 
-# heatmap colors
-colors = 123:-5:88
+# highlight table entries
+best = Highlighter((d, i, j) -> begin
+  k = argmin([abs(d[i,k] - d[i,terror]) for k in errors])
+  j ∈ errors && errors[k] == j
+  end, bold=true, foreground=:blue
+)
+worst = Highlighter((d, i, j) -> begin
+  k = argmax([abs(d[i,k] - d[i,terror]) for k in errors])
+  j ∈ errors && errors[k] == j
+  end, bold=true, foreground=:red
+)
+actual = Highlighter((d, i, j) ->
+  j ∈ serror ∪ terror, foreground=:dark_gray
+)
 
 for g in groupby(df, :VARIABLE)
   pretty_table(g, nosubheader=true, crop=:none,
-               alignment=[:r,:r,:r,:r,:r,:c,:c],
-               formatters=ft_round(3,1:5),
+               alignment=[:c,:c,:r,:r,:r,:r,:r],
+               formatters=ft_round(3, serror ∪ terror ∪ errors),
                highlighters=(best, worst, actual))
 
   # model ranking based on each method
-  ranks = map([:CV,:BCV,:DRV,:ACTUAL]) do err
+  ranks = map([:TARGET,:CV,:BCV,:DRV]) do err
     r = sortperm(g[!,err])
     Symbol(err," RANK") => g[!,:MODEL][r]
   end
   r = DataFrame(ranks)
 
-  hs = Tuple([Highlighter((d, i, j) -> d[i,j] == r[k,Symbol("ACTUAL RANK")],
-                          background=colors[k],foreground=:black) for k in 1:size(r,1)])
+  hs = Tuple([Highlighter((d, i, j) -> d[i,j] == r[k,Symbol("TARGET RANK")],
+                          background=color(k,size(r,1)), foreground=:black) for k in 1:size(r,1)])
   pretty_table(r, nosubheader=true, crop=:none,
                highlighters=hs, alignment=:c)
 end
