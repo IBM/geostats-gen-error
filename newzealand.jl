@@ -56,8 +56,7 @@ function experiment(m, p, r, k, ℒ)
   model = replace(info(m).name, r"(.*)(Regressor|Classifier)" => s"\g<1>")
 
   map(outputvars(task(p))) do var
-    (VARIABLE=var, MODEL=model,
-     SOURCE=ϵs[var], TARGET=ϵt[var],
+    (MODEL=model, SOURCE=ϵs[var], TARGET=ϵt[var],
      CV=cv[var], BCV=bcv[var], DRV=drv[var])
   end
 end
@@ -137,13 +136,26 @@ levels!(ft, ["Urenui","Manganui"])
 Ωs = join(view(Ωs, logs), 𝒫s)
 Ωt = join(view(Ωt, logs), 𝒫t)
 
-# block sides and number of folds for error estimators
-r = (10000., 10000., 500.)
-k = length(GeoStats.partition(Ωs, BlockPartitioner(r)))
+# additional configuration without shift
+𝒞 = DataCollection(Ωs, Ωt)
+fraction = npoints(Ωs) / (npoints(Ωs) + npoints(Ωt))
+Γs, Γt = split(𝒞, fraction)
 
-# ---------------
-# CLASSIFICATION
-# ---------------
+# -------------------
+# PROBLEM DEFINITION
+# -------------------
+# predict formation from well logs
+t = ClassificationTask(logs, :FORMATION)
+
+# onshore -> offshore problem
+p = LearningProblem(Ωs, Ωt, t)
+
+# problem without shift
+q = LearningProblem(Γs, Γt, t)
+
+# -----------
+# EXPERIMENT
+# -----------
 @load DummyClassifier pkg="ScikitLearn"
 @load RidgeClassifier pkg="ScikitLearn"
 @load LogisticClassifier pkg="ScikitLearn"
@@ -158,29 +170,36 @@ mrange = [RidgeClassifier(), LogisticClassifier(), KNeighborsClassifier(),
           GaussianNBClassifier(), BayesianLDA(), PerceptronClassifier(),
           DecisionTreeClassifier(), DummyClassifier()]
 
-# predict FORMATION from well logs
-t = ClassificationTask(logs, :FORMATION)
+# block sides and number of folds for error estimators
+r = (10000., 10000., 500.)
+k = length(GeoStats.partition(Ωs, BlockPartitioner(r)))
 
 # misclassification loss
 ℒ = Dict(:FORMATION => MisclassLoss())
 
-# onshore -> offshore problem
-p = LearningProblem(Ωs, Ωt, t)
-
 # experiment iterator and progress
-iterator = Iterators.product(mrange)
-progress = Progress(length(iterator), "Formation prediction:")
+iterator  = Iterators.product(mrange)
+pprogress = Progress(length(iterator), "ONSHORE → OFFSHORE ")
+qprogress = Progress(length(iterator), "NO COVARIATE SHIFT ")
 
 # return missing in case of failure
 skip = e -> (println("Skipped: $e"); missing)
 
 # perform experiments
-results = progress_pmap(iterator, progress=progress,
-                         on_error=skip) do (m,)
+presults = progress_pmap(iterator, progress=pprogress, on_error=skip) do (m,)
   experiment(m, p, r, k, ℒ)
 end
+qresults = progress_pmap(iterator, progress=qprogress, on_error=skip) do (m,)
+  experiment(m, q, r, k, ℒ)
+end
+
+# merge all results into a single table
+pres = Iterators.flatten(skipmissing(presults))
+qres = Iterators.flatten(skipmissing(qresults))
+pres = [(SHIFT="YES", r...) for r in pres]
+qres = [(SHIFT="NO",  r...) for r in qres]
+ares = DataFrame(vcat(pres, qres))
 
 # save all results to disk
 fname = joinpath(@__DIR__,"results","newzealand.csv")
-resdf = DataFrame(Iterators.flatten(skipmissing(results[:])))
-CSV.write(fname, resdf)
+CSV.write(fname, ares)
