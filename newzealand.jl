@@ -158,6 +158,15 @@ mrange = [RidgeClassifier(), LogisticClassifier(), KNeighborsClassifier(),
           GaussianNBClassifier(), BayesianLDA(), PerceptronClassifier(),
           DecisionTreeClassifier(), DummyClassifier()]
 
+# predict FORMATION from well logs
+t = ClassificationTask(logs, :FORMATION)
+
+# misclassification loss
+ℒ = Dict(:FORMATION => MisclassLoss())
+
+# onshore -> offshore problem
+p = LearningProblem(Ωs, Ωt, t)
+
 # experiment iterator and progress
 iterator = Iterators.product(mrange)
 progress = Progress(length(iterator), "Formation prediction:")
@@ -166,47 +175,12 @@ progress = Progress(length(iterator), "Formation prediction:")
 skip = e -> (println("Skipped: $e"); missing)
 
 # perform experiments
-cresults = progress_pmap(iterator, progress=progress,
+results = progress_pmap(iterator, progress=progress,
                          on_error=skip) do (m,)
-  t = ClassificationTask(logs, :FORMATION)
-  p = LearningProblem(Ωs, Ωt, t)
-  ℒ = Dict(:FORMATION => MisclassLoss())
   experiment(m, p, r, k, ℒ)
 end
-
-# -----------
-# REGRESSION
-# -----------
-@load DummyRegressor pkg="ScikitLearn"
-@load RidgeRegressor pkg="ScikitLearn"
-@load LassoRegressor pkg="ScikitLearn"
-@load KNeighborsRegressor pkg="ScikitLearn"
-@load DecisionTreeRegressor pkg="DecisionTree"
-
-# list of models
-mrange = [RidgeRegressor(), LassoRegressor(), KNeighborsRegressor(),
-          DecisionTreeRegressor(), DummyRegressor()]
-
-# variables to predict
-vrange = logs
-
-# experiment iterator and progress
-iterator = Iterators.product(mrange, vrange)
-progress = Progress(length(iterator), "Well log prediction:")
-
-# perform experiments
-rresults = progress_pmap(iterator, progress=progress,
-                         on_error=skip) do (m, v)
-  t = RegressionTask(logs[logs .!= v], v)
-  p = LearningProblem(Ωs, Ωt, t)
-  ℒ = Dict(v => L2DistLoss())
-  experiment(m, p, r, k, ℒ)
-end
-
-# merge all results into dataframe
-allres = vcat(cresults[:], rresults[:])
-resdf = DataFrame(Iterators.flatten(skipmissing(allres)))
 
 # save all results to disk
 fname = joinpath(@__DIR__,"results","newzealand.csv")
+resdf = DataFrame(Iterators.flatten(skipmissing(results[:])))
 CSV.write(fname, resdf)
