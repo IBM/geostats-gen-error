@@ -24,8 +24,8 @@ function error_empirical(m, p, ℒ)
   Ωs = sourcedata(p)
   Ωt = targetdata(p)
 
-  # learn task on source and perform
-  # it on both source and target data
+  # learn task on source domain and perform
+  # it on both source and target domains
   lm = learn(t, Ωs, m)
   ŷs = perform(t, Ωs, lm)
   ŷt = perform(t, Ωt, lm)
@@ -56,9 +56,9 @@ function experiment(m, p, r, k, ℒ)
   model = replace(info(m).name, r"(.*)(Regressor|Classifier)" => s"\g<1>")
 
   map(outputvars(task(p))) do var
-    (CV=cv[var], BCV=bcv[var], DRV=drv[var],
+    (VARIABLE=var, MODEL=model,
      SOURCE=ϵs[var], TARGET=ϵt[var],
-     MODEL=model, VARIABLE=var)
+     CV=cv[var], BCV=bcv[var], DRV=drv[var])
   end
 end
 
