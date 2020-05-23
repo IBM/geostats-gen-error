@@ -24,8 +24,8 @@ end
 # load results table
 df = CSV.read(joinpath(@__DIR__,"newzealand.csv"))
 
-# index of important columns
-serror, terror, errors = 3, 4, 5:7
+# index of source, target, and error estimate columns
+serror, terror, errors = 2, 3, 4:6
 
 # enable/disable LaTeX output
 print_latex = true
@@ -49,20 +49,23 @@ hbl = LatexHighlighter(best, ["color{NavyBlue}","textbf"])
 hwl = LatexHighlighter(worst, ["color{Maroon}","textbf"])
 htl = LatexHighlighter(target, ["textbf"])
 
-for g in groupby(df, :VARIABLE)
-  # variable name and number of models
-  v = g[1,:VARIABLE]
+for g in groupby(df, :SHIFT)
+  # shift and number of models
+  s = g[1,:SHIFT] == "YES" ? "onoff" : "noshift"
   n = size(g, 1)
 
-  pretty_table(g, nosubheader=true, crop=:none, vlines=[0,2,4,7],
-               alignment=[:c,:c,:r,:r,:r,:r,:r],
+  # drop shift column
+  g = g[!,Not(:SHIFT)]
+
+  pretty_table(g, nosubheader=true, crop=:none, vlines=[0,1,3,6],
+               alignment=[:c,:r,:r,:r,:r,:r],
                formatters=ft_round(3, serror ∪ terror ∪ errors),
                highlighters=(hb, hw, ht))
 
   if print_latex
-    open("newzealand-$v.tex", "w") do io
+    open("newzealand-$s.tex", "w") do io
       pretty_table(io, g, backend=:latex, tf=latex_simple,
-                   nosubheader=true, alignment=:c, vlines=[2,4],
+                   nosubheader=true, alignment=:c, vlines=[1,3],
                    formatters=ft_round(3, serror ∪ terror ∪ errors),
                    highlighters=(hbl, hwl, htl))
     end
@@ -84,7 +87,7 @@ for g in groupby(df, :VARIABLE)
     colorstr(k) = "cellcolor[RGB]{" * join(color(k, n), ",") * "}"
     hs = Tuple([LatexHighlighter((d, i, j) -> d[i,j] == r[k,Symbol("TARGET RANK")],
                [colorstr(k), "color{white}", "textbf"]) for k in 1:n])
-    open("newzealand-rank-$v.tex", "w") do io
+    open("newzealand-rank-$s.tex", "w") do io
       pretty_table(io, r, backend=:latex, tf=latex_simple,
                    nosubheader=true, alignment=:c, highlighters=hs)
     end
