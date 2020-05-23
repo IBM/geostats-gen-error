@@ -38,4 +38,10 @@ Run the same commands but from the `results` folder.
 
 ### New Zealand
 
-TODO
+#### Onshore -> Offshore
+
+![newzealand-onoff](results/newzealand-onoff.png)
+
+#### No covariate shift
+
+![newzealand-noshift](results/newzealand-noshift.png)
