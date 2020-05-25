@@ -18,10 +18,10 @@ From the root folder of the project:
 
 ```bash
 # Gaussian experiment
-shell> julia --project gaussian.jl
+$ julia --project gaussian.jl
 
 # New Zealand experiment
-shell> julia --project newzealand.jl
+$ julia --project newzealand.jl
 ```
 
 ## Plotting
