@@ -1,8 +1,9 @@
 # Overview
 
-This repository contains the experiments of the paper
-*Hoffimann et. al. 2020. Generalization error of learning
-models under covariate shift and spatial correlation*.
+This repository contains the experiments of the paper:
+
+*Hoffimann et. al. 2020. Geostatistical learning:
+challenges and opportunities*.
 
 # Instructions
 
